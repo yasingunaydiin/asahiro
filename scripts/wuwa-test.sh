@@ -153,7 +153,7 @@ status)
     ps -axo pid,etime,args | grep -iE 'wine|steam|wuthering|Client-Win64|ACE-[A-Za-z]+\.' | grep -v grep || echo "nothing running"
     if [ -d "$GAME_DIR" ]; then
         echo "game folder: $(du -sh "$GAME_DIR" | cut -f1)"
-        find "$GAME_DIR" -maxdepth 4 -iname '*ace*' \( -iname '*.sys' -o -iname '*.exe' -o -iname '*.dll' \) | sed "s|$GAME_DIR/||"
+        find "$GAME_DIR" -maxdepth 6 -iname '*ace*' \( -iname '*.sys' -o -iname '*.exe' -o -iname '*.dll' \) | sed "s|$GAME_DIR/||"
     else
         echo "game not installed yet"
     fi
