@@ -6,8 +6,9 @@ import Foundation
 @MainActor
 final class Updater: ObservableObject {
     static let shared = Updater()
-    static let repo = URL(string: "https://github.com/chwair/asahiro")!
-    private static let latestAPI = URL(string: "https://api.github.com/repos/chwair/asahiro/releases/latest")!
+    static let repo = URL(string: "https://github.com/\(AppInfo.repo)")!
+    // runner releases are published as pre-releases, which this endpoint skips
+    private static let latestAPI = URL(string: "https://api.github.com/repos/\(AppInfo.repo)/releases/latest")!
     private static let autoKey = "autoUpdate"
     private static let lastCheckKey = "lastUpdateCheck"
 
@@ -94,19 +95,19 @@ final class Updater: ObservableObject {
     private func stage(_ url: URL) async throws -> URL {
         let (dmg, _) = try await URLSession.shared.download(from: url)
         let dir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("com.chair.asahiro/update", isDirectory: true)
+            .appendingPathComponent("\(AppInfo.bundleID)/update", isDirectory: true)
         try? FileManager.default.removeItem(at: dir)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let mount = dir.appendingPathComponent("mount")
-        let app = dir.appendingPathComponent("Asahiro.app")
+        let app = dir.appendingPathComponent("\(AppInfo.name).app")
         try await Task.detached {
             try Self.run("/usr/bin/hdiutil", ["attach", dmg.path, "-nobrowse", "-readonly", "-noverify", "-mountpoint", mount.path])
             defer { try? Self.run("/usr/bin/hdiutil", ["detach", mount.path, "-force"]) }
-            try Self.run("/usr/bin/ditto", [mount.appendingPathComponent("Asahiro.app").path, app.path])
+            try Self.run("/usr/bin/ditto", [mount.appendingPathComponent("\(AppInfo.name).app").path, app.path])
         }.value
         try? FileManager.default.removeItem(at: dmg)
         guard Bundle(url: app)?.bundleIdentifier == Bundle.main.bundleIdentifier else {
-            throw CoreError(message: "The downloaded update is not Asahiro.")
+            throw CoreError(message: "The downloaded update is not \(AppInfo.name).")
         }
         return app
     }

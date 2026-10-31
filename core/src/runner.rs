@@ -175,8 +175,8 @@ pub fn ensure(task: &Task) -> Result<PathBuf> {
     Ok(runner_dir())
 }
 
-const GAME_APP: &str = "Zenless Zone Zero.app";
-const GAME_BUNDLE_ID: &str = "com.chair.asahiro.game";
+const GAME_APP: &str = "Wuthering Waves.app";
+const GAME_BUNDLE_ID: &str = "com.yasingunaydin.asahiro-wuwa.game";
 const LOADER: &str = "lib/wine/x86_64-unix/wine";
 const LSREGISTER: &str = "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister";
 
@@ -195,7 +195,7 @@ pub fn ensure_game_app() -> Result<()> {
 <dict>
     <key>CFBundleExecutable</key><string>wine</string>
     <key>CFBundleIdentifier</key><string>{}</string>
-    <key>CFBundleName</key><string>Zenless Zone Zero</string>
+    <key>CFBundleName</key><string>Wuthering Waves</string>
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>{}
     <key>LSApplicationCategoryType</key><string>public.app-category.games</string>

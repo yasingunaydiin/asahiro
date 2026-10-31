@@ -149,7 +149,7 @@ struct VideoLayer: NSViewRepresentable {
         </script>
         </body></html>
         """
-        let dir = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Caches/Asahiro/art")
+        let dir = AppInfo.cachesDir.appendingPathComponent("art")
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let page = dir.appendingPathComponent("background.html")
         do {
