@@ -80,4 +80,7 @@ Asahiro Waves is not affiliated with Kuro Games, Valve, CodeWeavers or Apple.
 ## License
 
 MIT, see [LICENSE](LICENSE). The original Asahiro copyright notice stays in place.
+
+PS to chwair: thank you for making Asahiro for ZZZ. Modding broke on YAAGL exactly two days before your
+first commit, so I'm very thankful for it.
 </invoke>
