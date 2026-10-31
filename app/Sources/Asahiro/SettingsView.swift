@@ -379,10 +379,10 @@ struct SettingsView: View {
     private func modsPage(_ c: Binding<AppConfig>) -> some View {
         let z = model.zzmi
         SettingsGroup(footer: "Mods are against the game's terms of service. Use them at your own risk.") {
-            SettingsToggle(title: "Enable mods", subtitle: "Loads ZZMI into the game at launch.", isOn: c.modsEnabled)
+            SettingsToggle(title: "Enable mods", subtitle: "Loads WWMI into the game at launch.", isOn: c.modsEnabled)
         }
-        SettingsGroup(header: "ZZMI") {
-            SettingsValue(title: "ZZMI package", value: z?.zzmiVersion ?? "Not installed")
+        SettingsGroup(header: "WWMI") {
+            SettingsValue(title: "WWMI package", value: z?.zzmiVersion ?? "Not installed")
             SettingsValue(title: "XXMI libraries", value: z?.libsVersion ?? "Not installed")
             SettingsButton(title: zzmiActionTitle(z), subtitle: zzmiActionSubtitle(z), label: z?.installed == true ? (z?.updateAvailable == true ? "Update" : "Reinstall") : "Install") {
                 model.start(.zzmiInstall)
@@ -407,13 +407,13 @@ struct SettingsView: View {
     }
 
     private func zzmiActionTitle(_ z: ZzmiStatus?) -> String {
-        guard let z, z.installed else { return "Install ZZMI" }
+        guard let z, z.installed else { return "Install WWMI" }
         return z.updateAvailable ? "Update available" : "Up to date"
     }
 
     private func zzmiActionSubtitle(_ z: ZzmiStatus?) -> String? {
         guard let z, z.installed else { return "Downloads from GitHub and verifies signatures." }
-        if z.updateAvailable { return "ZZMI \(z.latestZzmi ?? "?") and XXMI \(z.latestLibs ?? "?") are available." }
+        if z.updateAvailable { return "WWMI \(z.latestZzmi ?? "?") and XXMI \(z.latestLibs ?? "?") are available." }
         return nil
     }
 

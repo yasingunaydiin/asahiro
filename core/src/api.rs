@@ -170,44 +170,25 @@ pub fn art(language: &str) -> Result<Art> {
     }
 }
 
-fn fetch_art(language: &str) -> Result<Art> {
-    let basic = get_json(&format!("{API}/getAllGameBasicInfo?launcher_id={LAUNCHER_ID}&language={language}"))?;
-    let games = get_json(&format!("{API}/getGames?launcher_id={LAUNCHER_ID}&language={language}"))?;
-    let game = basic["data"]["game_info_list"]
-        .as_array()
-        .and_then(|a| a.iter().find(|x| x["game"]["biz"] == BIZ))
-        .cloned()
-        .unwrap_or(Value::Null);
-    let display = games["data"]["games"]
-        .as_array()
-        .and_then(|a| a.iter().find(|x| x["biz"] == BIZ))
-        .map(|g| g["display"].clone())
-        .unwrap_or(Value::Null);
-
-    let s = |v: &Value| v.as_str().filter(|s| !s.is_empty()).map(String::from);
-    // video backgrounds take priority, matching the official launcher
-    let bgs = game["backgrounds"].as_array().cloned().unwrap_or_default();
-    let bg = bgs
-        .iter()
-        .find(|b| b["type"] == "BACKGROUND_TYPE_VIDEO")
-        .or_else(|| bgs.first())
-        .cloned()
-        .unwrap_or(Value::Null);
-
+// steam's library art for the game. hoyo's launcher feed only has their own games, and kuro's launcher
+// api isn't public, so there is no video background, theme or news banner
+fn fetch_art(_language: &str) -> Result<Art> {
     let mut a = Art {
-        background: s(&bg["background"]["url"]).or_else(|| s(&display["background"]["url"])).unwrap_or_default(),
-        video: if bg["type"] == "BACKGROUND_TYPE_VIDEO" { s(&bg["video"]["url"]) } else { None },
-        theme: s(&bg["theme"]["url"]),
-        logo: s(&display["logo"]["url"]).unwrap_or_default(),
-        icon: s(&bg["icon"]["url"]),
-        icon_hover: s(&bg["icon"]["hover_url"]),
-        icon_link: s(&bg["icon"]["link"]),
-        title: s(&display["name"]).unwrap_or_else(|| "Zenless Zone Zero".into()),
-        // the windows desktop shortcut icon, used for the macos game shortcut
-        shortcut_icon: s(&display["shortcut"]["url"]),
+        background: format!("https://cdn.cloudflare.steamstatic.com/steam/apps/{}/library_hero_2x.jpg", crate::steam::APP_ID),
+        video: None,
+        theme: None,
+        logo: String::new(),
+        icon: None,
+        icon_hover: None,
+        icon_link: None,
+        title: "Wuthering Waves".into(),
+        shortcut_icon: None,
         local: ArtFiles::default(),
     };
     a.local = local_files(&a, true);
+    if a.local.background.is_none() {
+        return err("could not download the launcher art");
+    }
     Ok(a)
 }
 
