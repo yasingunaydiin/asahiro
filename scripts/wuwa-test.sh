@@ -12,6 +12,7 @@
 #   ./scripts/wuwa-test.sh status   show wine processes and the anti-cheat files in the game folder
 #   ./scripts/wuwa-test.sh stop     kill everything running in the test bottle
 #   ./scripts/wuwa-test.sh logs     show the end of the latest log
+#   ./scripts/wuwa-test.sh relink   point the runner copy's symlinks at itself (setup does this)
 set -e
 
 ROOT="${WUWA_ROOT:-/Volumes/T7/WuWa-test}"
@@ -43,6 +44,15 @@ need_root() {
     fi
 }
 
+# asahiro's runner has absolute symlinks into itself (its zzz app bundle for the dock name), point them
+# at the copy so the test never runs asahiro's own binaries
+relink_runner() {
+    find "$RUNNER" -type l | while IFS= read -r l; do
+        t=$(readlink "$l")
+        case "$t" in "$SRC_RUNNER"/*) ln -sfh "$RUNNER${t#"$SRC_RUNNER"}" "$l" ;; esac
+    done
+}
+
 need_bottle() {
     need_root
     if [ ! -x "$RUNNER/bin/wine" ] || [ ! -d "$WINEPREFIX/drive_c" ]; then
@@ -52,6 +62,11 @@ need_bottle() {
 }
 
 case "$1" in
+relink)
+    need_bottle
+    relink_runner
+    echo "runner links now point inside $RUNNER"
+    ;;
 setup)
     need_root
     if [ ! -x "$SRC_RUNNER/bin/wine" ]; then
@@ -63,6 +78,7 @@ setup)
     # it already has dxmt swapped in, which is what asahiro uses for zzz
     echo "copying the wine runner (about 2 GB)"
     rsync -a --delete "$SRC_RUNNER/" "$RUNNER/"
+    relink_runner
     echo "creating the bottle at $WINEPREFIX"
     L=$(log_file setup)
     wine wineboot -u >"$L" 2>&1
@@ -110,7 +126,7 @@ logs)
     [ -n "$latest" ] && { echo "== $latest"; tail -n "${2:-60}" "$latest"; } || echo "no logs yet"
     ;;
 *)
-    sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'
     exit 1
     ;;
 esac
