@@ -4,11 +4,11 @@
 # branch. nothing here patches or disables the anti-cheat.
 #
 # everything lives in $WUWA_ROOT (default /Volumes/T7/WuWa-test), asahiro's own runner and bottle are
-# only read from, never changed.
+# only read from, never changed. the runner is asahiro's with wine/patches built in, see wine/README.md.
 #
-#   ./scripts/wuwa-test.sh setup    copy the wine runner and create a fresh bottle
+#   ./scripts/wuwa-test.sh setup    build the patched runner and create a fresh bottle
 #   ./scripts/wuwa-test.sh steam    download and run the windows steam installer
-#   ./scripts/wuwa-test.sh run      start steam, install and launch wuwa from there
+#   ./scripts/wuwa-test.sh run      start steam, then switch d3d11 to dxmt for the game once it is up
 #   ./scripts/wuwa-test.sh status   show wine processes and the anti-cheat files in the game folder
 #   ./scripts/wuwa-test.sh stop     kill everything running in the test bottle
 #   ./scripts/wuwa-test.sh logs     show the end of the latest log
@@ -78,6 +78,17 @@ relink_runner() {
     done
 }
 
+# swaps the runner copy's d3d11 between wine's own (builtin) and dxmt. a running process keeps what it loaded
+set_gfx() {
+    dir="$RUNNER/lib/wine/x86_64-windows"
+    case "$1" in builtin) from=orig ;; dxmt) from=dxmt ;; esac
+    for d in $GFX_DLLS; do
+        # the copy starts on dxmt, keep that version before the first swap overwrites it
+        [ -f "$dir/$d.dll.dxmt" ] || cp "$dir/$d.dll" "$dir/$d.dll.dxmt"
+        cp "$dir/$d.dll.$from" "$dir/$d.dll"
+    done
+}
+
 need_bottle() {
     need_root
     if [ ! -x "$RUNNER/bin/wine" ] || [ ! -d "$WINEPREFIX/drive_c" ]; then
@@ -94,13 +105,7 @@ wrap)
     ;;
 gfx)
     need_bottle
-    dir="$RUNNER/lib/wine/x86_64-windows"
-    case "$2" in builtin) from=orig ;; dxmt) from=dxmt ;; *) echo "usage: $0 gfx builtin|dxmt" >&2; exit 1 ;; esac
-    for d in $GFX_DLLS; do
-        # the copy starts on dxmt, keep that version before the first swap overwrites it
-        [ -f "$dir/$d.dll.dxmt" ] || cp "$dir/$d.dll" "$dir/$d.dll.dxmt"
-        cp "$dir/$d.dll.$from" "$dir/$d.dll"
-    done
+    case "$2" in builtin|dxmt) set_gfx "$2" ;; *) echo "usage: $0 gfx builtin|dxmt" >&2; exit 1 ;; esac
     echo "d3d11 is now $2, new wine processes pick it up"
     ;;
 relink)
@@ -117,12 +122,16 @@ setup)
     mkdir -p "$ROOT" "$LOGS" "$DXMT_SHADER_CACHE_PATH"
     # a private copy, so an asahiro update or graphics switch can't change the runner mid-test.
     # it already has dxmt swapped in, which is what asahiro uses for zzz
-    echo "copying the wine runner (about 2 GB)"
-    rsync -a --delete "$SRC_RUNNER/" "$RUNNER/"
-    relink_runner
+    "$(dirname "$0")/wuwa-build-runner.sh" "$RUNNER"
     echo "creating the bottle at $WINEPREFIX"
     L=$(log_file setup)
     wine wineboot -u >"$L" 2>&1
+    # ace-core wants lsass's SamSs service running, the patched wineboot starts it on every boot
+    cp "$RUNNER/lib/wine/x86_64-windows/lsass.exe" "$WINEPREFIX/drive_c/windows/system32/lsass.exe"
+    if ! wine sc query SamSs >/dev/null 2>&1; then
+        wine sc create SamSs binPath= 'C:\windows\system32\lsass.exe' type= share start= demand \
+            DisplayName= "Security Accounts Manager" >>"$L" 2>&1
+    fi
     wineserver -w
     echo "done, next: $0 steam"
     ;;
@@ -143,10 +152,17 @@ run)
     unset SteamOS SteamDeck
     L=$(log_file steam)
     echo "starting steam, log: $L"
-    echo "sign in, add wuthering waves to your library and install it, then press play"
+    set_gfx builtin
     # shellcheck disable=SC2086
     # steam's startup check puts valve's web helper back over the wrapper unless it's told to leave files alone
     wine "$STEAM_EXE" -noverifyfiles -norepairfiles $STEAM_ARGS >"$L" 2>&1 &
+    # steam's windows need wine's own d3d11, the game needs dxmt. the web helper keeps the d3d11 it loaded,
+    # so the switch waits for it and a little longer for its first window
+    i=0
+    while ! pgrep -qf steamwebhelper_real && [ $i -lt 120 ]; do sleep 1; i=$((i+1)); done
+    sleep 20
+    set_gfx dxmt
+    echo "steam is up and d3d11 is back on dxmt, sign in if asked and press play on wuthering waves"
     ;;
 status)
     need_root

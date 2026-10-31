@@ -29,6 +29,11 @@ its message says what changed.
 
 ## Building
 
+`scripts/wuwa-build-runner.sh [out]` does all of this. It downloads and checks the source, applies the
+patches, builds the patched modules and puts them into a copy of asahiro's runner. A second run only
+rebuilds what changed. `scripts/wuwa-test.sh setup` calls it and also does the bottle setup below.
+The steps by hand:
+
 The runner is x86_64 and runs under Rosetta 2, so configure and make run under `arch -x86_64`. Wine
 needs bison 3 (`brew install bison`) and mingw-w64 (`brew install mingw-w64`). Patch 0038 adds a
 program, so `configure` has to be regenerated with autoconf.
