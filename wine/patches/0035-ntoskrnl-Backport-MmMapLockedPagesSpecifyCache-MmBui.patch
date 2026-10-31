@@ -1,0 +1,66 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Yasin Gunaydin <y.gunaydinmail@gmail.com>
+Date: Sat, 31 Oct 2026 15:08:13 +0100
+Subject: [PATCH 35/42] ntoskrnl: Backport MmMapLockedPagesSpecifyCache,
+ MmBuildMdlForNonPagedPool, MmProbeAndLockPages and MmUnlockPages.
+
+These are still stubs in CrossOver 26.1. The bodies are taken from upstream Wine, which the next patch
+(keep MDL section views mapped) builds on. ACE calls MmMapLockedPagesSpecifyCache and
+MmBuildMdlForNonPagedPool.
+---
+ dlls/ntoskrnl.exe/ntoskrnl.c | 20 +++++++++++++++-----
+ 1 file changed, 15 insertions(+), 5 deletions(-)
+
+diff --git a/dlls/ntoskrnl.exe/ntoskrnl.c b/dlls/ntoskrnl.exe/ntoskrnl.c
+index 705c3b28..ddece935 100644
+--- a/dlls/ntoskrnl.exe/ntoskrnl.c
++++ b/dlls/ntoskrnl.exe/ntoskrnl.c
+@@ -3080,7 +3080,10 @@ PMDL WINAPI MmAllocatePagesForMdl(PHYSICAL_ADDRESS lowaddress, PHYSICAL_ADDRESS
+  */
+ void WINAPI MmBuildMdlForNonPagedPool(MDL *mdl)
+ {
+-    FIXME("stub: %p\n", mdl);
++    TRACE("%p\n", mdl);
++
++    mdl->MdlFlags |= MDL_SOURCE_IS_NONPAGED_POOL;
++    mdl->MappedSystemVa = (char *)mdl->StartVa + mdl->ByteOffset;
+ }
+ 
+ /***********************************************************************
+@@ -3198,9 +3201,12 @@ PVOID WINAPI MmMapLockedPages( MDL *mdl, KPROCESSOR_MODE mode )
+ PVOID WINAPI  MmMapLockedPagesSpecifyCache(PMDLX MemoryDescriptorList, KPROCESSOR_MODE AccessMode, MEMORY_CACHING_TYPE CacheType,
+                                            PVOID BaseAddress, ULONG BugCheckOnFailure, MM_PAGE_PRIORITY Priority)
+ {
+-    FIXME("(%p, %u, %u, %p, %lu, %u): stub\n", MemoryDescriptorList, AccessMode, CacheType, BaseAddress, BugCheckOnFailure, Priority);
++    TRACE("(%p, %u, %u, %p, %lu, %u)\n", MemoryDescriptorList, AccessMode, CacheType,
++          BaseAddress, BugCheckOnFailure, Priority);
+ 
+-    return NULL;
++    if (BaseAddress) FIXME("requested base address %p ignored\n", BaseAddress);
++
++    return MmMapLockedPages( MemoryDescriptorList, AccessMode );
+ }
+ 
+ /***********************************************************************
+@@ -3234,7 +3240,9 @@ PVOID WINAPI MmPageEntireDriver(PVOID AddrInSection)
+  */
+ void WINAPI MmProbeAndLockPages(PMDLX MemoryDescriptorList, KPROCESSOR_MODE AccessMode, LOCK_OPERATION Operation)
+ {
+-    FIXME("(%p, %u, %u): stub\n", MemoryDescriptorList, AccessMode, Operation);
++    TRACE("(%p, %u, %u)\n", MemoryDescriptorList, AccessMode, Operation);
++
++    MemoryDescriptorList->MdlFlags |= MDL_PAGES_LOCKED;
+ }
+ 
+ 
+@@ -3252,7 +3260,9 @@ void WINAPI MmResetDriverPaging(PVOID AddrInSection)
+  */
+ void WINAPI  MmUnlockPages(PMDLX MemoryDescriptorList)
+ {
+-    FIXME("(%p): stub\n", MemoryDescriptorList);
++    TRACE("(%p)\n", MemoryDescriptorList);
++
++    MemoryDescriptorList->MdlFlags &= ~MDL_PAGES_LOCKED;
+ }
+ 
+ 

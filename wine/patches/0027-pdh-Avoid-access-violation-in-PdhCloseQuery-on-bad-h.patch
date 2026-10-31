@@ -1,0 +1,24 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Ziia Shi <mkrsym1@gmail.com>
+Date: Mon, 24 Aug 2026 02:21:52 +0200
+Subject: [PATCH 27/42] pdh: Avoid access violation in PdhCloseQuery on bad
+ handle.
+
+(cherry picked from commit 3ef59044339c6aa27e20e7ff98bc2fed3ceadae1)
+---
+ dlls/pdh/pdh_main.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/dlls/pdh/pdh_main.c b/dlls/pdh/pdh_main.c
+index 2cd7afee..843b5004 100644
+--- a/dlls/pdh/pdh_main.c
++++ b/dlls/pdh/pdh_main.c
+@@ -363,7 +363,7 @@ PDH_STATUS WINAPI PdhCloseQuery( PDH_HQUERY handle )
+     TRACE("%p\n", handle);
+ 
+     EnterCriticalSection( &pdh_handle_cs );
+-    if (!query || query->magic != PDH_MAGIC_QUERY)
++    if (!query || IsBadReadPtr( query, sizeof(*query) ) || query->magic != PDH_MAGIC_QUERY)
+     {
+         LeaveCriticalSection( &pdh_handle_cs );
+         return PDH_INVALID_HANDLE;

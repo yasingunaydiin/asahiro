@@ -1,0 +1,59 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Yasin Gunaydin <y.gunaydinmail@gmail.com>
+Date: Sat, 31 Oct 2026 14:20:20 +0100
+Subject: [PATCH 30/42] ntoskrnl: Implement PsGetProcessExitStatus.
+
+---
+ dlls/ntoskrnl.exe/ntoskrnl.c        | 25 +++++++++++++++++++++++++
+ dlls/ntoskrnl.exe/ntoskrnl.exe.spec |  2 +-
+ 2 files changed, 26 insertions(+), 1 deletion(-)
+
+diff --git a/dlls/ntoskrnl.exe/ntoskrnl.c b/dlls/ntoskrnl.exe/ntoskrnl.c
+index 94daf18c..b2bc56b6 100644
+--- a/dlls/ntoskrnl.exe/ntoskrnl.c
++++ b/dlls/ntoskrnl.exe/ntoskrnl.c
+@@ -2606,6 +2606,31 @@ LONGLONG WINAPI PsGetProcessCreateTimeQuadPart( PEPROCESS process )
+     return process->times.CreateTime.QuadPart;
+ }
+ 
++/*********************************************************************
++ *           PsGetProcessExitStatus    (NTOSKRNL.@)
++ */
++NTSTATUS WINAPI PsGetProcessExitStatus( PEPROCESS process )
++{
++    PROCESS_BASIC_INFORMATION info;
++    NTSTATUS status;
++    HANDLE h;
++
++    if ((status = ObOpenObjectByPointer( process, 0, NULL, PROCESS_QUERY_LIMITED_INFORMATION, NULL, KernelMode, &h )))
++    {
++        WARN( "Error opening process object, status %#lx.\n", status );
++        return process->info.ExitStatus;
++    }
++    status = NtQueryInformationProcess( h, ProcessBasicInformation, &info, sizeof(info), NULL );
++    NtClose( h );
++    if (status)
++    {
++        WARN( "Error querying process, status %#lx.\n", status );
++        return process->info.ExitStatus;
++    }
++    TRACE( "%p -> %#lx\n", process, info.ExitStatus );
++    return info.ExitStatus;
++}
++
+ /*********************************************************************
+  *           PsGetProcessImageFileName    (NTOSKRNL.@)
+  */
+diff --git a/dlls/ntoskrnl.exe/ntoskrnl.exe.spec b/dlls/ntoskrnl.exe/ntoskrnl.exe.spec
+index fa9bf54c..6d2d54f3 100644
+--- a/dlls/ntoskrnl.exe/ntoskrnl.exe.spec
++++ b/dlls/ntoskrnl.exe/ntoskrnl.exe.spec
+@@ -928,7 +928,7 @@
+ @ stdcall PsGetProcessCreateTimeQuadPart(ptr)
+ @ stub PsGetProcessDebugPort
+ @ stub PsGetProcessExitProcessCalled
+-@ stub PsGetProcessExitStatus
++@ stdcall PsGetProcessExitStatus(ptr)
+ @ stub PsGetProcessExitTime
+ @ stdcall PsGetProcessId(ptr)
+ @ stdcall PsGetProcessImageFileName(ptr)

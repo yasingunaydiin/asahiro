@@ -1,0 +1,85 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Yasin Gunaydin <y.gunaydinmail@gmail.com>
+Date: Sat, 31 Oct 2026 15:00:06 +0100
+Subject: [PATCH 41/42] hal: Implement HalQueryRealTimeClock and
+ KeStallExecutionProcessor, add a HalSetBusDataByOffset stub.
+
+---
+ dlls/hal/hal.c    | 34 ++++++++++++++++++++++++++++++++++
+ dlls/hal/hal.spec |  6 +++---
+ 2 files changed, 37 insertions(+), 3 deletions(-)
+
+diff --git a/dlls/hal/hal.c b/dlls/hal/hal.c
+index e339f21a..2b3eebd6 100644
+--- a/dlls/hal/hal.c
++++ b/dlls/hal/hal.c
+@@ -179,6 +179,40 @@ ULONG WINAPI HalGetBusDataByOffset(BUS_DATA_TYPE BusDataType, ULONG BusNumber, U
+     return 0;
+ }
+ 
++ULONG WINAPI HalSetBusDataByOffset(BUS_DATA_TYPE BusDataType, ULONG BusNumber, ULONG SlotNumber, PVOID Buffer, ULONG Offset, ULONG Length)
++{
++    FIXME("(%u %lu %lu %p %lu %lu) stub!\n", BusDataType, BusNumber, SlotNumber, Buffer, Offset, Length);
++    /* Claim that there is no such bus */
++    return 0;
++}
++
++/* the cmos clock holds local time on windows */
++BOOLEAN WINAPI HalQueryRealTimeClock(TIME_FIELDS *time)
++{
++    LARGE_INTEGER now, local;
++
++    TRACE("(%p)\n", time);
++
++    KeQuerySystemTime(&now);
++    RtlSystemTimeToLocalTime(&now, &local);
++    RtlTimeToTimeFields(&local, time);
++    return TRUE;
++}
++
++void WINAPI KeStallExecutionProcessor(ULONG microseconds)
++{
++    LARGE_INTEGER start, now, frequency;
++
++    TRACE("(%lu)\n", microseconds);
++
++    NtQueryPerformanceCounter(&start, &frequency);
++    do
++    {
++        YieldProcessor();
++        NtQueryPerformanceCounter(&now, NULL);
++    } while ((now.QuadPart - start.QuadPart) * 1000000 / frequency.QuadPart < microseconds);
++}
++
+ BOOLEAN WINAPI HalTranslateBusAddress(INTERFACE_TYPE InterfaceType, ULONG BusNumber, PHYSICAL_ADDRESS BusAddress,
+ 		                              PULONG AddressSpace, PPHYSICAL_ADDRESS TranslatedAddress)
+ {
+diff --git a/dlls/hal/hal.spec b/dlls/hal/hal.spec
+index d8db0119..34ad0816 100644
+--- a/dlls/hal/hal.spec
++++ b/dlls/hal/hal.spec
+@@ -43,13 +43,13 @@
+ @ stub HalMakeBeep
+ @ stub HalProcessorIdle
+ @ stub HalQueryDisplayParameters
+-@ stub HalQueryRealTimeClock
++@ stdcall HalQueryRealTimeClock(ptr)
+ @ stub HalReadDmaCounter
+ @ stub HalReportResourceUsage
+ @ stub HalRequestIpi
+ @ stub HalReturnToFirmware
+ @ stub HalSetBusData
+-@ stub HalSetBusDataByOffset
++@ stdcall HalSetBusDataByOffset(long long long ptr long long)
+ @ stub HalSetDisplayParameters
+ @ stub HalSetEnvironmentVariable
+ @ stub HalSetProfileInterval
+@@ -77,7 +77,7 @@
+ @ stub KeRaiseIrqlToDpcLevel
+ @ stub KeRaiseIrqlToSynchLevel
+ @ stdcall -arch=i386 KeReleaseSpinLock(ptr long)
+-@ stub KeStallExecutionProcessor
++@ stdcall KeStallExecutionProcessor(long)
+ @ stub READ_PORT_BUFFER_UCHAR
+ @ stub READ_PORT_BUFFER_ULONG
+ @ stub READ_PORT_BUFFER_USHORT

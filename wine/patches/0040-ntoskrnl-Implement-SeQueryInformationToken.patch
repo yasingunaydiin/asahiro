@@ -1,0 +1,66 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Yasin Gunaydin <y.gunaydinmail@gmail.com>
+Date: Sat, 31 Oct 2026 14:39:25 +0100
+Subject: [PATCH 40/42] ntoskrnl: Implement SeQueryInformationToken.
+
+---
+ dlls/ntoskrnl.exe/ntoskrnl.c        | 32 +++++++++++++++++++++++++++++
+ dlls/ntoskrnl.exe/ntoskrnl.exe.spec |  2 +-
+ 2 files changed, 33 insertions(+), 1 deletion(-)
+
+diff --git a/dlls/ntoskrnl.exe/ntoskrnl.c b/dlls/ntoskrnl.exe/ntoskrnl.c
+index d26305ef..71f3f672 100644
+--- a/dlls/ntoskrnl.exe/ntoskrnl.c
++++ b/dlls/ntoskrnl.exe/ntoskrnl.c
+@@ -4810,6 +4810,38 @@ static struct _OBJECT_TYPE token_type =
+ 
+ POBJECT_TYPE SeTokenObjectType = &token_type;
+ 
++/*************************************************************************
++ *           SeQueryInformationToken   (NTOSKRNL.@)
++ *
++ * The caller frees the returned buffer with ExFreePool.
++ */
++NTSTATUS WINAPI SeQueryInformationToken( PACCESS_TOKEN token, TOKEN_INFORMATION_CLASS class, void **info )
++{
++    NTSTATUS status;
++    ULONG size = 0;
++    void *buffer;
++    HANDLE h;
++
++    TRACE( "%p %u %p\n", token, class, info );
++
++    *info = NULL;
++    if ((status = ObOpenObjectByPointer( token, 0, NULL, TOKEN_QUERY, SeTokenObjectType, KernelMode, &h )))
++    {
++        WARN( "Error opening token object, status %#lx.\n", status );
++        return status;
++    }
++    status = NtQueryInformationToken( h, class, NULL, 0, &size );
++    if (status == STATUS_BUFFER_TOO_SMALL)
++    {
++        if (!(buffer = ExAllocatePool( PagedPool, size ))) status = STATUS_INSUFFICIENT_RESOURCES;
++        else if ((status = NtQueryInformationToken( h, class, buffer, size, &size ))) ExFreePool( buffer );
++        else *info = buffer;
++    }
++    else if (!status) status = STATUS_UNSUCCESSFUL;
++    NtClose( h );
++    return status;
++}
++
+ /*************************************************************************
+  *           ExUuidCreate            (NTOSKRNL.@)
+  *
+diff --git a/dlls/ntoskrnl.exe/ntoskrnl.exe.spec b/dlls/ntoskrnl.exe/ntoskrnl.exe.spec
+index 7922c0cf..2f5ec94a 100644
+--- a/dlls/ntoskrnl.exe/ntoskrnl.exe.spec
++++ b/dlls/ntoskrnl.exe/ntoskrnl.exe.spec
+@@ -1371,7 +1371,7 @@
+ @ stub SePrivilegeObjectAuditAlarm
+ @ stub SePublicDefaultDacl
+ @ stub SeQueryAuthenticationIdToken
+-@ stub SeQueryInformationToken
++@ stdcall SeQueryInformationToken(ptr long ptr)
+ @ stub SeQuerySecurityDescriptorInfo
+ @ stub SeQuerySessionIdToken
+ @ stub SeRegisterLogonSessionTerminatedRoutine
