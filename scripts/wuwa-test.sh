@@ -1,14 +1,14 @@
 #!/bin/sh
 # first test for wuthering waves: does the windows steam build start under asahiro's wine on macos?
-# on linux it runs under proton with SteamOS=1, which makes the game take its steam deck path for the
-# anti-cheat. nothing here patches or disables the anti-cheat, if it refuses to start the test is over.
+# ace only starts once wine's kernel side behaves like windows, see the patched runner notes in the wuwa
+# branch. nothing here patches or disables the anti-cheat.
 #
 # everything lives in $WUWA_ROOT (default /Volumes/T7/WuWa-test), asahiro's own runner and bottle are
 # only read from, never changed.
 #
 #   ./scripts/wuwa-test.sh setup    copy the wine runner and create a fresh bottle
 #   ./scripts/wuwa-test.sh steam    download and run the windows steam installer
-#   ./scripts/wuwa-test.sh run      start steam with SteamOS=1, install and launch wuwa from there
+#   ./scripts/wuwa-test.sh run      start steam, install and launch wuwa from there
 #   ./scripts/wuwa-test.sh status   show wine processes and the anti-cheat files in the game folder
 #   ./scripts/wuwa-test.sh stop     kill everything running in the test bottle
 #   ./scripts/wuwa-test.sh logs     show the end of the latest log
@@ -139,8 +139,8 @@ steam)
 run)
     need_bottle
     wrap_webhelper
-    # inherited by the game when steam starts it, the windows steam client has no %command% launch options
-    export SteamOS=1
+    # no SteamOS/SteamDeck here: since game 3.4 they load a broken video plugin, proton's fix unsets them
+    unset SteamOS SteamDeck
     L=$(log_file steam)
     echo "starting steam, log: $L"
     echo "sign in, add wuthering waves to your library and install it, then press play"
