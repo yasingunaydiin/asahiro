@@ -14,7 +14,7 @@
 #   ./scripts/wuwa-test.sh logs     show the end of the latest log
 #   ./scripts/wuwa-test.sh relink   point the runner copy's symlinks at itself (setup does this)
 #   ./scripts/wuwa-test.sh gfx builtin|dxmt   swap the runner copy's d3d11 between wined3d and dxmt
-#   ./scripts/wuwa-test.sh wrap     put steamwebhelper-wrapper.c in front of steam's web helper (run does this)
+#   ./scripts/wuwa-test.sh wrap     put app/inject/steamwebhelper-wrapper.c in front of steam's web helper (run does this)
 set -e
 
 ROOT="${WUWA_ROOT:-/Volumes/T7/WuWa-test}"
@@ -47,7 +47,7 @@ log_file() { mkdir -p "$LOGS"; echo "$LOGS/$1-$(date +%Y%m%d-%H%M%S).log"; }
 # updates put valve's binary back over the wrapper, so this runs before every start. the wrapper is a few
 # hundred kb at most and valve's is several mb, which is how the two are told apart
 wrap_webhelper() {
-    src="$(cd "$(dirname "$0")" && pwd)/steamwebhelper-wrapper.c"
+    src="$(cd "$(dirname "$0")/.." && pwd)/app/inject/steamwebhelper-wrapper.c"
     out="$ROOT/wrapper/steamwebhelper.exe"
     mkdir -p "$ROOT/wrapper"
     if [ ! -f "$out" ] || [ "$src" -nt "$out" ]; then

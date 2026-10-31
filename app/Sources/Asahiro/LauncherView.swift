@@ -364,14 +364,14 @@ private struct StatusPanel: View {
     private var content: (label: String, meta: String?, title: String) {
         if let a = model.activity {
             if a.kind == .launch && model.gameRunning {
-                return ("IN GAME", modsMeta, "Zenless Zone Zero")
+                return ("IN GAME", modsMeta, AppInfo.gameName)
             }
             // the percentage already sits on the big button
             return (a.title.uppercased(), nil, progressLine(a))
         }
-        if model.gameRunning { return ("IN GAME", modsMeta, "Zenless Zone Zero") }
+        if model.gameRunning { return ("IN GAME", modsMeta, AppInfo.gameName) }
         guard let s = model.state else {
-            return (model.offline == nil ? "CONNECTING" : "OFFLINE", nil, "Zenless Zone Zero")
+            return (model.offline == nil ? "CONNECTING" : "OFFLINE", nil, AppInfo.gameName)
         }
         if !s.installed {
             return (s.partialDownload ? "PAUSED" : "NOT INSTALLED", formatBytes(s.downloadSize), "Version \(s.latest)")

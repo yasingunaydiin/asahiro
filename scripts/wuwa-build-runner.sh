@@ -14,7 +14,8 @@ OUT="${1:-$ROOT/runner}"
 WORK="$ROOT/build"
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 PATCHES="$REPO/wine/patches"
-SRC_RUNNER="$HOME/Library/Application Support/Asahiro/runners/wine-crossover-11.0-1"
+# the runner the patched modules go into, asahiro's installed one unless told otherwise
+SRC_RUNNER="${WUWA_BASE_RUNNER:-$HOME/Library/Application Support/Asahiro/runners/wine-crossover-11.0-1}"
 TARBALL_URL="https://media.codeweavers.com/pub/crossover/source/crossover-sources-26.1.0.tar.gz"
 TARBALL_SHA256="e4ec87d5821a009dd1f1d2e36ffe2e24b8fcbae9516375ea42f95a16928ab8fa"
 TARBALL="$WORK/crossover-sources-26.1.0.tar.gz"
@@ -37,7 +38,7 @@ if [ ! -d "$(dirname "$ROOT")" ]; then
     exit 1
 fi
 if [ ! -x "$SRC_RUNNER/bin/wine" ]; then
-    echo "asahiro's runner is missing at $SRC_RUNNER, launch zzz in asahiro once first" >&2
+    echo "no runner at $SRC_RUNNER, launch zzz in asahiro once first or set WUWA_BASE_RUNNER" >&2
     exit 1
 fi
 BISON="$(brew --prefix bison 2>/dev/null)/bin"

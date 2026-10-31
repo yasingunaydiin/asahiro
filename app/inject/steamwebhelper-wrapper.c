@@ -1,8 +1,9 @@
-// stands in for steam's steamwebhelper.exe in the wuwa test bottle and starts valve's binary, renamed to
+// stands in for steam's steamwebhelper.exe in the game bottle and starts valve's binary, renamed to
 // steamwebhelper_real.exe, with two extra chromium flags. without them cef 126 paints every steam window
 // black under wine on macos: --disable-gpu keeps rasterising on the cpu, --single-process keeps the gpu,
 // renderer and network services inside one process so nothing has to cross a process boundary in wine.
-// steam ignores its own -cef-single-process, so the flags have to be added here. built by wuwa-test.sh wrap
+// steam ignores its own -cef-single-process, so the flags have to be added here. core embeds the copy that
+// scripts/build.sh builds into app/Resources/bin
 #include <windows.h>
 
 #define REAL_NAME L"steamwebhelper_real.exe"
