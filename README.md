@@ -83,4 +83,3 @@ MIT, see [LICENSE](LICENSE). The original Asahiro copyright notice stays in plac
 
 PS to chwair: thank you for making Asahiro for ZZZ. Modding broke on YAAGL exactly two days before your
 first commit, so I'm very thankful for it.
-</invoke>
