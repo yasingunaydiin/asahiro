@@ -20,7 +20,7 @@ same way dwproton and GE-Proton do on Linux, where Kuro supports the game on the
 | 0001, 0029 | Rosetta 2 raises SIGILL for register form hint nops (`0f 18`–`0f 1f`, mod 3) that x86 cpus treat as nops, and #UD instead of #GP for privileged instructions. The game's protector is full of the former, ACE's driver reads `cr3`. | new |
 | 0002–0026, 0028, 0031 | ntoskrnl functions ACE's driver uses: guarded mutexes, `PsGetProcess*`, `PsGetThread*`, bug check callbacks, `MmGetVirtualForPhysical`, `PsGetContextThread`, tokens as kernel objects | dwproton 11.0-12 (Etaash Mathamsetty, Quitting) |
 | 0027 | `PdhCloseQuery` on a bad handle, hit by Tencent PerfSight | dwproton, upstream MR 11739 (Ziia Shi) |
-| 0030, 0040, 0041, 0042 | `PsGetProcessExitStatus`, `SeQueryInformationToken`, HAL clock and stall, no-op `Inbv*` | new |
+| 0030, 0040, 0041 | `PsGetProcessExitStatus`, `SeQueryInformationToken`, HAL clock and stall | new |
 | 0032–0034, 0036–0039 | DriverEntry called with a kernel-space return address, `MmCopyMemory`, `ServiceKeyName`, MDL section views, `PsGetContextThread` thunk, lsass.exe SamSs service | GE-Proton `patches/game-patches/ace-*` (mkrsym1, NelloKudo, Piotr Caban) |
 | 0035 | upstream Wine's MDL map and lock functions, which CrossOver 26.1 still stubs | upstream Wine |
 
@@ -92,3 +92,7 @@ The patched wineboot starts it on every boot.
   ported yet. The game runs without them.
 - Many ntoskrnl, fltmgr and ndis functions that ACE imports are still stubs. The ones that crashed
   the driver are implemented. The rest haven't been called in testing so far.
+- One of ACE's system threads calls `InbvAcquireDisplayOwnership` first thing, which isn't
+  implemented, so that thread dies. With no-op `Inbv*` stubs it gets further, references an object
+  directory handle (`kernel_object_from_handle` has no "Directory" type) and ACE then stops the game
+  with 13-131081-130. Until directory objects are supported the stubs stay out.

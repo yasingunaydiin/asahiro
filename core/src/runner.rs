@@ -11,8 +11,8 @@ use crate::util::{data_dir, err, Result, Task};
 pub const RUNNER_NAME: &str = "CrossOver 11.0-1 with WuWa patches";
 const RUNNER_ID: &str = "wine-crossover-11.0-1-wuwa1";
 const RUNNER_URL: &str = "https://github.com/yasingunaydiin/asahiro/releases/download/runner-wuwa1/wine-crossover-11.0-1-wuwa1.tar.xz";
-const RUNNER_SHA256: &str = "1295c26be8888b9ec366827254dcd9ef1db8bbe838c531ec123d1bedf531b849";
-const RUNNER_SIZE: u64 = 450482168;
+const RUNNER_SHA256: &str = "ed94bd708183a8ebf93de00d6d3d4af1f81e42e6237da887c4c36cbf1c33d84a";
+const RUNNER_SIZE: u64 = 450515684;
 
 const DXMT_ID: &str = "dxmt-654f547";
 const DXMT_URL: &str = "https://github.com/yaagl/anime-game-wine/releases/download/dxmt-654f547/dxmt-654f547ffab4e0c395ee368aad52bb4586b04576.zip";
@@ -178,7 +178,7 @@ pub fn ensure(task: &Task) -> Result<PathBuf> {
 }
 
 const GAME_APP: &str = "Wuthering Waves.app";
-const GAME_BUNDLE_ID: &str = "com.yasingunaydin.asahiro-wuwa.game";
+const GAME_BUNDLE_ID: &str = "com.yasingunaydin.asahiro-waves.game";
 const LOADER: &str = "lib/wine/x86_64-unix/wine";
 const LSREGISTER: &str = "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister";
 
