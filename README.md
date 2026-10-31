@@ -1,10 +1,10 @@
 <div align="center">
 <img src="docs/logo.png" width="128" height="128" alt="Asahiro logo">
 <h1>Asahiro Waves</h1>
-<p>A macOS launcher for Wuthering Waves on Apple Silicon, with its anti-cheat running as normal</p>
+<p>A macOS launcher for a Certain Wavy Anime Game on Apple Silicon, with its anti-cheat running as normal</p>
 </div>
 
-Asahiro Waves is a fork of [Asahiro](https://github.com/chwair/asahiro) by chwair, reworked for Wuthering Waves.
+Asahiro Waves is a fork of [Asahiro](https://github.com/chwair/asahiro) by chwair, reworked for a different game.
 It runs the Windows Steam release of the game under a patched Wine. Nothing in the game or its anti-cheat
 (ACE) is bypassed or disabled. The patches fill in the parts of Windows that Rosetta 2 and Wine lack.
 
@@ -30,12 +30,12 @@ It runs the Windows Steam release of the game under a patched Wine. Nothing in t
 ## Using Asahiro Waves
 
 Requirements: an Apple Silicon Mac on macOS 26 or later with Rosetta 2, and a Steam account that owns
-Wuthering Waves (it's free).
+the game (it's free).
 
 1. Build the app (see below). There are no prebuilt releases yet.
 2. Open Asahiro Waves and click Install. It downloads the Wine runner (about 450 MB), creates the bottle and
    installs Steam, then opens Steam on the game's page.
-3. Sign in to Steam in its window and install Wuthering Waves there.
+3. Sign in to Steam in its window and install the game there.
 4. Click Start. The app starts Steam if needed and has it launch the game.
 
 ## Building
