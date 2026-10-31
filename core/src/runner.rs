@@ -6,11 +6,13 @@ use crate::util::{data_dir, err, Result, Task};
 
 // crossover's open source wine tree built by the yaagl project, it gets the game past the
 // anti-cheat where the wine inside crossover 26 does not
-pub const RUNNER_NAME: &str = "CrossOver 11.0-1";
-const RUNNER_ID: &str = "wine-crossover-11.0-1";
-const RUNNER_URL: &str = "https://github.com/yaagl/anime-game-wine/releases/download/wine-crossover-11.0-1-signed/wine-crossover-11.0-1-osx64-signed.tar.xz";
-const RUNNER_SHA256: &str = "89fa7e90fb626523a90d5867a03c6be785d017176739c6320a3b86c7838c3a35";
-const RUNNER_SIZE: u64 = 456021524;
+// yaagl's crossover 11.0 runner with wine/patches built in, made by scripts/wuwa-package-runner.sh and
+// published as a pre-release so the app updater skips it
+pub const RUNNER_NAME: &str = "CrossOver 11.0-1 with WuWa patches";
+const RUNNER_ID: &str = "wine-crossover-11.0-1-wuwa1";
+const RUNNER_URL: &str = "https://github.com/yasingunaydiin/asahiro/releases/download/runner-wuwa1/wine-crossover-11.0-1-wuwa1.tar.xz";
+const RUNNER_SHA256: &str = "1295c26be8888b9ec366827254dcd9ef1db8bbe838c531ec123d1bedf531b849";
+const RUNNER_SIZE: u64 = 450482168;
 
 const DXMT_ID: &str = "dxmt-654f547";
 const DXMT_URL: &str = "https://github.com/yaagl/anime-game-wine/releases/download/dxmt-654f547/dxmt-654f547ffab4e0c395ee368aad52bb4586b04576.zip";
