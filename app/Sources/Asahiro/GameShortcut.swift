@@ -32,7 +32,7 @@ enum GameShortcut {
     }
 
     // when asahiro is not running it is started with --quick-launch so its window never appears,
-    // otherwise the running instance gets the asahiro-wuwa://launch url
+    // otherwise the running instance gets the asahiro-waves://launch url
     private static let script = """
     #!/bin/sh
     if /usr/bin/pgrep -qx \(AppInfo.executable); then

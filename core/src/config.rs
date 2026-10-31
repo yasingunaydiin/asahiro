@@ -54,7 +54,7 @@ impl Default for BottleConfig {
     fn default() -> Self {
         BottleConfig {
             // never upstream asahiro's "Asahiro" bottle, which holds a zzz install
-            name: "Asahiro WuWa".into(),
+            name: "Asahiro Waves".into(),
             windows_version: "win10".into(),
             graphics_backend: default_backend(),
             msync: true,
@@ -133,15 +133,9 @@ fn default_backend() -> GraphicsBackend {
     if found { GraphicsBackend::D3dmetal } else { GraphicsBackend::Dxmt }
 }
 
-// prefer an existing install over the stock location
+// the bottle steam and the game live in. never upstream asahiro's zzz folder, the fork can sit next to it
 fn default_game_dir() -> String {
-    for candidate in ["~/ZZZ", "~/Games/ZenlessZoneZero"] {
-        let p = expand(candidate);
-        if p.join("ZenlessZoneZero.exe").exists() || p.join(".ariatmp").exists() {
-            return p.to_string_lossy().into_owned();
-        }
-    }
-    home().join("Games/ZenlessZoneZero").to_string_lossy().into_owned()
+    home().join("Games/WutheringWaves").to_string_lossy().into_owned()
 }
 
 impl Config {

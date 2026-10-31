@@ -63,8 +63,8 @@ jobs:
         run: |
           git tag "v$VERSION" "$GITHUB_SHA"
           git push origin "v$VERSION"
-          gh release create "v$VERSION" "dist/Asahiro-WuWa-$VERSION.dmg" \
-            --draft --verify-tag --title "Asahiro WuWa $VERSION" --notes-file notes.md
+          gh release create "v$VERSION" "dist/Asahiro-Waves-$VERSION.dmg" \
+            --draft --verify-tag --title "Asahiro Waves $VERSION" --notes-file notes.md
         env:
           VERSION: ${{ steps.version.outputs.version }}
           GH_TOKEN: ${{ github.token }}

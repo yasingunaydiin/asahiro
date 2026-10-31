@@ -33,7 +33,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Updater.shared.installStaged(relaunch: false)
     }
 
-    // asahiro-wuwa://launch, sent by the game shortcut when the launcher is already running
+    // asahiro-waves://launch, sent by the game shortcut when the launcher is already running
     @objc func handleURL(_ event: NSAppleEventDescriptor, reply: NSAppleEventDescriptor) {
         guard let text = event.paramDescriptor(forKeyword: keyDirectObject)?.stringValue,
               let url = URL(string: text), url.scheme == AppInfo.urlScheme else { return }
