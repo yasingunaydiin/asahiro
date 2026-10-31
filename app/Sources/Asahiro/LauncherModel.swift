@@ -494,7 +494,6 @@ final class LauncherModel: ObservableObject {
     }
 
     var logsFolder: String {
-        FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Application Support/Asahiro/logs").path
+        AppInfo.supportDir.appendingPathComponent("logs").path
     }
 }

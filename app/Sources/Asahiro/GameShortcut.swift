@@ -1,18 +1,17 @@
 import AppKit
 import CoreServices
 
-// a small "Zenless Zone Zero" app in ~/Applications that starts the game through asahiro's quick launch,
+// a small "Wuthering Waves" app in ~/Applications that starts the game through asahiro's quick launch,
 // so it can live in the dock and launchpad like a native game
 enum GameShortcut {
-    static let bundleID = "com.chair.asahiro.zzz-shortcut"
+    static let bundleID = "\(AppInfo.bundleID).shortcut"
     // the bundle core runs wine from, see GAME_BUNDLE_ID in runner.rs
-    static let gameBundleID = "com.chair.asahiro.game"
-    // shortcuts made before the identifier change still count as ours and get migrated
-    private static let legacyBundleIDs = ["dev.asahiro.zzz-shortcut"]
+    static let gameBundleID = "\(AppInfo.bundleID).game"
+    private static let legacyBundleIDs: [String] = []
 
     static var url: URL {
         FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Applications/Zenless Zone Zero.app")
+            .appendingPathComponent("Applications/\(AppInfo.gameName).app")
     }
 
     enum Status: Equatable {
@@ -33,13 +32,13 @@ enum GameShortcut {
     }
 
     // when asahiro is not running it is started with --quick-launch so its window never appears,
-    // otherwise the running instance gets the asahiro://launch url
+    // otherwise the running instance gets the asahiro-wuwa://launch url
     private static let script = """
     #!/bin/sh
-    if /usr/bin/pgrep -qx Asahiro; then
-        exec /usr/bin/open -g "asahiro://launch"
+    if /usr/bin/pgrep -qx \(AppInfo.executable); then
+        exec /usr/bin/open -g "\(AppInfo.urlScheme)://launch"
     fi
-    exec /usr/bin/open -g -b com.chair.asahiro --args --quick-launch
+    exec /usr/bin/open -g -b \(AppInfo.bundleID) --args --quick-launch
 
     """
 
@@ -51,10 +50,10 @@ enum GameShortcut {
         try fm.createDirectory(at: contents.appendingPathComponent("Resources"), withIntermediateDirectories: true)
 
         let info: [String: Any] = [
-            "CFBundleName": "Zenless Zone Zero",
-            "CFBundleDisplayName": "Zenless Zone Zero",
+            "CFBundleName": AppInfo.gameName,
+            "CFBundleDisplayName": AppInfo.gameName,
             "CFBundleIdentifier": bundleID,
-            "CFBundleExecutable": "zzz",
+            "CFBundleExecutable": "wuwa",
             "CFBundleIconFile": "AppIcon",
             "CFBundlePackageType": "APPL",
             "CFBundleShortVersionString": "1.0",
@@ -67,7 +66,7 @@ enum GameShortcut {
         let plist = try PropertyListSerialization.data(fromPropertyList: info, format: .xml, options: 0)
         try plist.write(to: contents.appendingPathComponent("Info.plist"))
 
-        let exe = contents.appendingPathComponent("MacOS/zzz")
+        let exe = contents.appendingPathComponent("MacOS/wuwa")
         try script.write(to: exe, atomically: true, encoding: .utf8)
         try fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: exe.path)
 
@@ -79,7 +78,7 @@ enum GameShortcut {
 
         // only our own previous shortcut is overwritten in place
         if status == .ours { try fm.removeItem(at: url) }
-        if fm.fileExists(atPath: url.path) { throw CoreError(message: "another Zenless Zone Zero app is already in Applications") }
+        if fm.fileExists(atPath: url.path) { throw CoreError(message: "another \(AppInfo.gameName) app is already in Applications") }
         try fm.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         try fm.moveItem(at: staging, to: url)
         LSRegisterURL(url as CFURL, true)
@@ -126,8 +125,7 @@ enum GameShortcut {
 
     // the game's own bundle, which wine runs from, shows the same icon in the dock. core copies it in at launch
     static var gameIconURL: URL {
-        FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Application Support/Asahiro/game-icon.icns")
+        AppInfo.supportDir.appendingPathComponent("game-icon.icns")
     }
 
     // only renders again when the launcher hands out different art

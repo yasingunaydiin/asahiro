@@ -44,14 +44,17 @@ pub fn home() -> PathBuf {
     PathBuf::from(std::env::var("HOME").unwrap_or_else(|_| "/tmp".into()))
 }
 
+// the fork's folders, kept apart from upstream asahiro's so both can be installed
+pub const APP_DIR: &str = "Asahiro WuWa";
+
 pub fn data_dir() -> PathBuf {
-    let p = home().join("Library/Application Support/Asahiro");
+    let p = home().join("Library/Application Support").join(APP_DIR);
     let _ = std::fs::create_dir_all(&p);
     p
 }
 
 pub fn cache_dir() -> PathBuf {
-    let p = home().join("Library/Caches/Asahiro");
+    let p = home().join("Library/Caches").join(APP_DIR);
     let _ = std::fs::create_dir_all(&p);
     p
 }

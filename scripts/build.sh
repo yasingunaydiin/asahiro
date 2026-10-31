@@ -1,5 +1,5 @@
 #!/bin/sh
-# builds dist/Asahiro.app from the rust core and swift front end
+# builds dist/Asahiro WuWa.app from the rust core and swift front end
 set -e
 cd "$(dirname "$0")/.."
 export MACOSX_DEPLOYMENT_TARGET=26.0
@@ -17,14 +17,24 @@ cargo build --release --manifest-path core/Cargo.toml
 rm -f app/.build/release/Asahiro
 swift build -c release --package-path app
 
-APP=dist/Asahiro.app
+# the fork's identity, see app/Sources/Asahiro/AppInfo.swift. the executable name differs from upstream's
+# because the game shortcut finds the running launcher by process name
+NAME="Asahiro WuWa"
+BUNDLE_ID=com.yasingunaydin.asahiro-wuwa
+EXE=AsahiroWuWa
+APP="dist/$NAME.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-cp "$(swift build -c release --package-path app --show-bin-path)/Asahiro" "$APP/Contents/MacOS/Asahiro"
+cp "$(swift build -c release --package-path app --show-bin-path)/Asahiro" "$APP/Contents/MacOS/$EXE"
 # compiles the icon composer document into the liquid glass asset catalog plus a legacy icns
-xcrun actool app/Resources/AppIcon.icon --compile "$APP/Contents/Resources" --platform macosx \
-    --minimum-deployment-target 26.0 --app-icon AppIcon --target-device mac \
-    --output-partial-info-plist /dev/null >/dev/null
+# actool ships with xcode only, a command line tools setup still gets a working app, just without the icon
+if xcrun -f actool >/dev/null 2>&1; then
+    xcrun actool app/Resources/AppIcon.icon --compile "$APP/Contents/Resources" --platform macosx \
+        --minimum-deployment-target 26.0 --app-icon AppIcon --target-device mac \
+        --output-partial-info-plist /dev/null >/dev/null
+else
+    echo "actool not found (it comes with xcode), building without the app icon"
+fi
 mkdir -p "$APP/Contents/Resources/Fonts"
 cp app/Resources/Fonts/*.ttf app/Resources/Fonts/OFL.txt "$APP/Contents/Resources/Fonts/"
 cat > "$APP/Contents/Info.plist" <<PLIST
@@ -32,10 +42,10 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CFBundleName</key><string>Asahiro</string>
-    <key>CFBundleDisplayName</key><string>Asahiro</string>
-    <key>CFBundleIdentifier</key><string>com.chair.asahiro</string>
-    <key>CFBundleExecutable</key><string>Asahiro</string>
+    <key>CFBundleName</key><string>$NAME</string>
+    <key>CFBundleDisplayName</key><string>$NAME</string>
+    <key>CFBundleIdentifier</key><string>$BUNDLE_ID</string>
+    <key>CFBundleExecutable</key><string>$EXE</string>
     <key>CFBundleIconFile</key><string>AppIcon</string>
     <key>CFBundleIconName</key><string>AppIcon</string>
     <key>CFBundlePackageType</key><string>APPL</string>
@@ -48,8 +58,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>CFBundleURLTypes</key>
     <array>
         <dict>
-            <key>CFBundleURLName</key><string>com.chair.asahiro</string>
-            <key>CFBundleURLSchemes</key><array><string>asahiro</string></array>
+            <key>CFBundleURLName</key><string>$BUNDLE_ID</string>
+            <key>CFBundleURLSchemes</key><array><string>asahiro-wuwa</string></array>
         </dict>
     </array>
     <key>NSSupportsAutomaticGraphicsSwitching</key><true/>

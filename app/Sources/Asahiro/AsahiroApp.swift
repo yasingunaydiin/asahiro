@@ -33,10 +33,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Updater.shared.installStaged(relaunch: false)
     }
 
-    // asahiro://launch, sent by the game shortcut when asahiro is already running
+    // asahiro-wuwa://launch, sent by the game shortcut when the launcher is already running
     @objc func handleURL(_ event: NSAppleEventDescriptor, reply: NSAppleEventDescriptor) {
         guard let text = event.paramDescriptor(forKeyword: keyDirectObject)?.stringValue,
-              let url = URL(string: text), url.scheme == "asahiro" else { return }
+              let url = URL(string: text), url.scheme == AppInfo.urlScheme else { return }
         if url.host == "launch" {
             LauncherModel.shared.requestQuickLaunch()
         }
@@ -61,7 +61,7 @@ struct AsahiroApp: App {
     @StateObject private var model = LauncherModel.shared
 
     var body: some Scene {
-        WindowGroup("Asahiro") {
+        WindowGroup(AppInfo.name) {
             LauncherView()
                 .environmentObject(model)
                 .background(WindowReader { window in

@@ -53,7 +53,8 @@ pub struct BottleConfig {
 impl Default for BottleConfig {
     fn default() -> Self {
         BottleConfig {
-            name: "Asahiro".into(),
+            // never upstream asahiro's "Asahiro" bottle, which holds a zzz install
+            name: "Asahiro WuWa".into(),
             windows_version: "win10".into(),
             graphics_backend: default_backend(),
             msync: true,
