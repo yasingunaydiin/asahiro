@@ -1,0 +1,29 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Yasin Gunaydin <y.gunaydinmail@gmail.com>
+Date: Sat, 31 Oct 2026 14:15:39 +0100
+Subject: [PATCH 01/42] ntdll: Skip register form hint nops that Rosetta 2
+ rejects.
+
+---
+ dlls/ntdll/unix/signal_x86_64.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/dlls/ntdll/unix/signal_x86_64.c b/dlls/ntdll/unix/signal_x86_64.c
+index 91926a85..53c607e8 100644
+--- a/dlls/ntdll/unix/signal_x86_64.c
++++ b/dlls/ntdll/unix/signal_x86_64.c
+@@ -1990,6 +1990,14 @@ static inline BOOL handle_cet_nop( ucontext_t *sigcontext, CONTEXT *context )
+             RIP_sig(sigcontext) += prefix_count + 3;
+             TRACE_(seh)( "skipped RDSSPD/RDSSPQ instruction\n" );
+             return TRUE;
++        case 0x18: case 0x19: case 0x1A: case 0x1B: case 0x1C: case 0x1D: case 0x1F:
++            /* hint nops with a register operand: (prefixes) 0F 18-1F (modrm, mod == 3).
++               x86 cpus execute them as nops, rosetta raises SIGILL for them (macOS 26
++               still does). code protectors use them as junk, e.g. wuthering waves */
++            if (i + 2 >= len || (instr[i + 2] & 0xc0) != 0xc0) return FALSE;
++            RIP_sig(sigcontext) += prefix_count + 3;
++            TRACE_(seh)( "skipped register form hint nop 0f %02x %02x\n", instr[i + 1], instr[i + 2] );
++            return TRUE;
+         }
+         break;
+     default:

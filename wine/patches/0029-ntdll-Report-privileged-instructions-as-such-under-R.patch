@@ -1,0 +1,28 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Yasin Gunaydin <y.gunaydinmail@gmail.com>
+Date: Sat, 31 Oct 2026 14:18:21 +0100
+Subject: [PATCH 29/42] ntdll: Report privileged instructions as such under
+ Rosetta 2.
+
+---
+ dlls/ntdll/unix/signal_x86_64.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/dlls/ntdll/unix/signal_x86_64.c b/dlls/ntdll/unix/signal_x86_64.c
+index 53c607e8..c4f2aa83 100644
+--- a/dlls/ntdll/unix/signal_x86_64.c
++++ b/dlls/ntdll/unix/signal_x86_64.c
+@@ -2526,6 +2526,13 @@ static void segv_handler( int signal, siginfo_t *siginfo, void *sigcontext )
+         if (handle_cet_nop( ucontext, &context.c )) return;
+         /* CW HACK 23427 */
+         if (emulate_xgetbv( ucontext, &context.c )) return;
++        /* x86 cpus raise #GP for privileged instructions in user mode, rosetta raises #UD.
++           report what windows would so ntoskrnl can emulate them for kernel drivers */
++        if (is_rosetta2 && is_privileged_instr( &context.c ) == EXCEPTION_PRIV_INSTRUCTION)
++        {
++            rec.ExceptionCode = EXCEPTION_PRIV_INSTRUCTION;
++            break;
++        }
+ #endif
+         rec.ExceptionCode = EXCEPTION_ILLEGAL_INSTRUCTION;
+         break;
