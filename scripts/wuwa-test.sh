@@ -13,6 +13,8 @@
 #   ./scripts/wuwa-test.sh stop     kill everything running in the test bottle
 #   ./scripts/wuwa-test.sh logs     show the end of the latest log
 #   ./scripts/wuwa-test.sh relink   point the runner copy's symlinks at itself (setup does this)
+#   ./scripts/wuwa-test.sh gfx builtin|dxmt   swap the runner copy's d3d11 between wined3d and dxmt
+#   ./scripts/wuwa-test.sh wrap     put steamwebhelper-wrapper.c in front of steam's web helper (run does this)
 set -e
 
 ROOT="${WUWA_ROOT:-/Volumes/T7/WuWa-test}"
@@ -30,12 +32,35 @@ export WINEDEBUG="${WINEDEBUG:--all}"
 export GST_PLUGIN_FEATURE_RANK="atdec:MAX,avdec_h264:MAX"
 export DXMT_SHADER_CACHE_PATH="$ROOT/shadercache"
 
-# steam's web views tend to render black under wine, these keep them on the cpu. override with STEAM_ARGS
+# steam's web views tend to render black under wine, these keep them on the cpu. override with STEAM_ARGS.
+# steam still presents its windows through d3d11 and dxmt can't make those surfaces (EGL_BAD_ALLOC, then a
+# black window), so sign in and install on `gfx builtin` and switch to `gfx dxmt` before pressing play
 STEAM_ARGS="${STEAM_ARGS:--cef-disable-gpu -cef-disable-sandbox}"
+# the files dxmt replaces in the runner, asahiro keeps wine's own next to them as .orig
+GFX_DLLS="d3d10core d3d11 dxgi"
 
 wine() { "$RUNNER/bin/wine" "$@"; }
 wineserver() { "$RUNNER/bin/wineserver" "$@"; }
 log_file() { mkdir -p "$LOGS"; echo "$LOGS/$1-$(date +%Y%m%d-%H%M%S).log"; }
+
+# builds the wrapper and puts it where steam starts its web helper, keeping valve's binary beside it. steam
+# updates put valve's binary back over the wrapper, so this runs before every start. the wrapper is a few
+# hundred kb at most and valve's is several mb, which is how the two are told apart
+wrap_webhelper() {
+    src="$(cd "$(dirname "$0")" && pwd)/steamwebhelper-wrapper.c"
+    out="$ROOT/wrapper/steamwebhelper.exe"
+    mkdir -p "$ROOT/wrapper"
+    if [ ! -f "$out" ] || [ "$src" -nt "$out" ]; then
+        x86_64-w64-mingw32-gcc -municode -mwindows -O2 -Wall -Wextra -static -o "$out" "$src"
+    fi
+    for d in "$WINEPREFIX/drive_c/Program Files (x86)/Steam/bin/cef"/cef.win*; do
+        [ -f "$d/steamwebhelper.exe" ] || continue
+        if [ "$(stat -f %z "$d/steamwebhelper.exe")" -gt 1000000 ]; then
+            mv -f "$d/steamwebhelper.exe" "$d/steamwebhelper_real.exe"
+        fi
+        cp "$out" "$d/steamwebhelper.exe"
+    done
+}
 
 need_root() {
     if [ ! -d "$(dirname "$ROOT")" ]; then
@@ -62,6 +87,22 @@ need_bottle() {
 }
 
 case "$1" in
+wrap)
+    need_bottle
+    wrap_webhelper
+    echo "steam's web helper now starts with --disable-gpu --single-process"
+    ;;
+gfx)
+    need_bottle
+    dir="$RUNNER/lib/wine/x86_64-windows"
+    case "$2" in builtin) from=orig ;; dxmt) from=dxmt ;; *) echo "usage: $0 gfx builtin|dxmt" >&2; exit 1 ;; esac
+    for d in $GFX_DLLS; do
+        # the copy starts on dxmt, keep that version before the first swap overwrites it
+        [ -f "$dir/$d.dll.dxmt" ] || cp "$dir/$d.dll" "$dir/$d.dll.dxmt"
+        cp "$dir/$d.dll.$from" "$dir/$d.dll"
+    done
+    echo "d3d11 is now $2, new wine processes pick it up"
+    ;;
 relink)
     need_bottle
     relink_runner
@@ -97,13 +138,15 @@ steam)
     ;;
 run)
     need_bottle
+    wrap_webhelper
     # inherited by the game when steam starts it, the windows steam client has no %command% launch options
     export SteamOS=1
     L=$(log_file steam)
     echo "starting steam, log: $L"
     echo "sign in, add wuthering waves to your library and install it, then press play"
     # shellcheck disable=SC2086
-    wine "$STEAM_EXE" $STEAM_ARGS >"$L" 2>&1 &
+    # steam's startup check puts valve's web helper back over the wrapper unless it's told to leave files alone
+    wine "$STEAM_EXE" -noverifyfiles -norepairfiles $STEAM_ARGS >"$L" 2>&1 &
     ;;
 status)
     need_root
@@ -126,7 +169,7 @@ logs)
     [ -n "$latest" ] && { echo "== $latest"; tail -n "${2:-60}" "$latest"; } || echo "no logs yet"
     ;;
 *)
-    sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'
     exit 1
     ;;
 esac
