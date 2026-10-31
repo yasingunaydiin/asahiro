@@ -10,6 +10,8 @@ BUILD="${BUILD:-1}"
 # the injector runs inside wine, the core embeds the committed exe so mingw is only needed to change it
 if command -v x86_64-w64-mingw32-gcc >/dev/null; then
     x86_64-w64-mingw32-gcc -O2 -municode -static -s -Wall -o app/Resources/bin/asahiro-inject.exe app/inject/asahiro-inject.c
+    # starts steam's web helper with the flags that keep its windows from rendering black
+    x86_64-w64-mingw32-gcc -O2 -municode -mwindows -static -s -Wall -Wextra -o app/Resources/bin/steamwebhelper.exe app/inject/steamwebhelper-wrapper.c
 fi
 # the frame pacer and dock icon hooks load into the x86_64 wine, the core embeds the committed dylib like the injector
 xcrun clang -arch x86_64 -O2 -Wall -fno-objc-arc -dynamiclib -lobjc -o app/Resources/bin/libasahiro-hooks.dylib app/hooks/asahiro-hooks.m

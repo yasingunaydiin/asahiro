@@ -101,7 +101,7 @@ struct SettingsView: View {
             try? await Task.sleep(for: .milliseconds(350))
             if !Task.isCancelled { model.saveConfig(draft) }
         }
-        .confirmationDialog("Replace the existing Zenless Zone Zero app?", isPresented: $confirmReplaceShortcut) {
+        .confirmationDialog("Replace the existing \(AppInfo.gameName) app?", isPresented: $confirmReplaceShortcut) {
             Button("Move It to Trash and Replace", role: .destructive) {
                 GameShortcut.replace(iconSource: model.art?.local.shortcutIcon) { error in
                     if let error { model.alert = error.localizedDescription }
@@ -253,7 +253,7 @@ struct SettingsView: View {
         }
         SettingsGroup(header: "Launcher") {
             SettingsToggle(title: "Hide launcher while playing", isOn: c.hideLauncherWhilePlaying)
-            SettingsRow(title: "Zenless Zone Zero app", subtitle: shortcutSubtitle) {
+            SettingsRow(title: "\(AppInfo.gameName) app", subtitle: shortcutSubtitle) {
                 HStack(spacing: Space.xs) {
                     switch shortcutStatus {
                     case .ours:
@@ -532,7 +532,7 @@ struct InstallSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             VStack(alignment: .leading, spacing: Space.xs) {
-                Text(model.state?.partialDownload == true ? "Resume installation" : "Install Zenless Zone Zero")
+                Text(model.state?.partialDownload == true ? "Resume installation" : "Install \(AppInfo.gameName)")
                     .font(.system(size: 20, weight: .semibold))
                 if let s = model.state {
                     Text("Version \(s.latest)")
@@ -562,7 +562,7 @@ struct InstallSheet: View {
             if offerShortcut {
                 SettingsGroup {
                     SettingsToggle(title: "Add to Applications",
-                                   subtitle: "A Zenless Zone Zero app that starts the game without opening the launcher.",
+                                   subtitle: "A \(AppInfo.gameName) app that starts the game without opening the launcher.",
                                    isOn: $addShortcut)
                 }
             }

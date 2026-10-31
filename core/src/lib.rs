@@ -5,6 +5,7 @@ pub mod download;
 pub mod game;
 pub mod mods;
 pub mod runner;
+pub mod steam;
 pub mod util;
 pub mod wine;
 
@@ -34,8 +35,7 @@ pub fn call(req: &Value) -> Result<Value> {
         }
         "get_state" => {
             let cfg = Config::load();
-            let m = api::manifest(req["refresh"].as_bool().unwrap_or(false))?;
-            Ok(serde_json::to_value(game::state(&cfg, &m)?)?)
+            Ok(serde_json::to_value(game::state(&cfg)?)?)
         }
         "get_art" => Ok(serde_json::to_value(api::art(req["language"].as_str().unwrap_or("en-us"))?)?),
         "wine_info" => Ok(serde_json::to_value(wine::info(&Config::load()))?),
@@ -70,17 +70,10 @@ pub fn run_task(task: &Task, req: &Value) -> Result<()> {
     let cfg = Config::load();
     let cmd = req["cmd"].as_str().unwrap_or("");
     match cmd {
-        "install" => game::install(task, &cfg, &api::manifest(true)?),
-        "update" => game::update(task, &cfg, &api::manifest(true)?, false),
-        "apply_predownload" => {
-            wine::restore_vulkan(&cfg.game_path());
-            game::update(task, &cfg, &api::manifest(true)?, true)
-        }
-        "predownload" => game::predownload(task, &cfg, &api::manifest(true)?),
-        "verify" => {
-            wine::restore_vulkan(&cfg.game_path());
-            game::verify(task, &cfg, &api::manifest(false)?)
-        }
+        "install" => game::install(task, &cfg),
+        "update" | "apply_predownload" => game::update(task, &cfg),
+        "predownload" => err("Steam handles pre-downloads for Wuthering Waves"),
+        "verify" => game::verify(task, &cfg),
         "create_bottle" => wine::create_bottle(task, &cfg),
         "apply_bottle" => wine::apply_bottle(task, &cfg),
         "launch" => wine::launch(task, &cfg),
