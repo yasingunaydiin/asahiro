@@ -132,7 +132,7 @@ struct ModsView: View {
                 .controlSize(.small)
                 .tint(.zzzYellow)
                 .font(.system(size: 12))
-                .help("Loads ZZMI into the game at launch")
+                .help("Loads WWMI into the game at launch")
                 .padding(.trailing, Space.s)
                 Button(action: model.reloadMods) {
                     Image(systemName: "arrow.clockwise")
@@ -181,7 +181,7 @@ struct ModsView: View {
 
     private var subtitle: String {
         if let a = model.activity, a.kind == .importMod || a.kind == .zzmiInstall { return a.status }
-        guard let z = model.zzmi, z.installed else { return "ZZMI is not installed yet" }
+        guard let z = model.zzmi, z.installed else { return "WWMI is not installed yet" }
         let on = model.mods.filter(\.enabled).count
         let state = z.enabled ? "loaded when the game starts" : "mods are off"
         return "\(on) of \(model.mods.count) enabled · \(state)"
@@ -327,13 +327,13 @@ struct ModsView: View {
         VStack(spacing: Space.m) {
             Spacer()
             Image(systemName: "puzzlepiece.extension").font(.system(size: 34)).foregroundStyle(.secondary)
-            Text("ZZMI is not installed").font(.system(size: 15, weight: .semibold))
-            Text("ZZMI loads character and UI mods into the game. Asahiro downloads it from its official GitHub releases and verifies the signatures.")
+            Text("WWMI is not installed").font(.system(size: 15, weight: .semibold))
+            Text("WWMI loads character and UI mods into the game. Asahiro downloads it from its official GitHub releases and verifies the signatures.")
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 380)
-            Button("Install ZZMI") { model.start(.zzmiInstall) }
+            Button("Install WWMI") { model.start(.zzmiInstall) }
                 .buttonStyle(.borderedProminent)
                 .tint(.zzzYellow)
                 .foregroundStyle(Color.zzzInk)

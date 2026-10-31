@@ -9,13 +9,14 @@ use crate::config::Config;
 use crate::download::{fetch, Meter};
 use crate::util::{cache_dir, data_dir, err, Result, Task};
 
-// zzmi is the zzz model importer: the xxmi build of 3dmigoto (d3d11.dll and its loader) plus the
-// zzmi package (shaders, core inis, d3dx.ini). both are signed by their authors, see verify()
+// wwmi is the wuthering waves model importer: the xxmi build of 3dmigoto (d3d11.dll and its loader) plus
+// the wwmi package (shaders, core inis, d3dx.ini). both are signed by their authors, see verify().
+// the zzmi names in here and in the front end's commands are left from upstream asahiro's zzz version
 const LIBS_REPO: &str = "SpectrumQT/XXMI-Libs-Package";
-const ZZMI_REPO: &str = "leotorrez/ZZMI-Package";
-// public keys from xxmi launcher's migoto_package.py and zzmi_package.py
+const ZZMI_REPO: &str = "SpectrumQT/WWMI-Package";
+// public keys from xxmi launcher's migoto_package.py and wwmi_package.py, spectrumqt signs both
 const LIBS_KEY: &str = "MHYwEAYHKoZIzj0CAQYFK4EEACIDYgAEYac352uRGKZh6LOwK0fVDW/TpyECEfnRtUp+bP2PJPP63SWOkJ3a/d9pAnPfYezRVJ1hWjZtpRTT8HEAN/b4mWpJvqO43SAEV/1Q6vz9Rk/VvRV3jZ6B/tmqVnIeHKEb";
-const ZZMI_KEY: &str = "MHYwEAYHKoZIzj0CAQYFK4EEACIDYgAEb11GjbKQS6SmRe8TcIc5VMu5Ob3moo5v2YeD+s53xEe4bVPGcToUNLu3Jgqo0OwWZ4RsNy1nR0HId6pR09HedyEMifxebsyPT3T5PH82QozEXHQlTDySklWUfGItoOdf";
+const ZZMI_KEY: &str = "MHYwEAYHKoZIzj0CAQYFK4EEACIDYgAEYac352uRGKZh6LOwK0fVDW/TpyECEfnRtUp+bP2PJPP63SWOkJ3a/d9pAnPfYezRVJ1hWjZtpRTT8HEAN/b4mWpJvqO43SAEV/1Q6vz9Rk/VvRV3jZ6B/tmqVnIeHKEb";
 const LIB_FILES: [&str; 3] = ["d3d11.dll", "3dmloader.dll", "d3dcompiler_47.dll"];
 const CHECK_INTERVAL: Duration = Duration::from_secs(6 * 3600);
 
@@ -23,7 +24,7 @@ pub const HELPER_NAME: &str = "asahiro-inject.exe";
 static HELPER: &[u8] = include_bytes!("../../app/Resources/bin/asahiro-inject.exe");
 
 pub fn zzmi_dir() -> PathBuf {
-    data_dir().join("zzmi")
+    data_dir().join("wwmi")
 }
 
 pub fn mods_dir() -> PathBuf {
@@ -109,7 +110,7 @@ fn fetch_release(repo: &str) -> Result<Release> {
 }
 
 fn releases(force: bool) -> Result<ReleaseCache> {
-    let path = cache_dir().join("zzmi-releases.json");
+    let path = cache_dir().join("wwmi-releases.json");
     let cached: Option<ReleaseCache> = std::fs::read(&path).ok().and_then(|b| serde_json::from_slice(&b).ok());
     if let Some(c) = &cached {
         if !force && now().saturating_sub(c.checked) < CHECK_INTERVAL.as_secs() {
@@ -225,7 +226,7 @@ fn replace_dir(from: &Path, to: &Path) -> Result<()> {
 // installs or updates both packages. Mods and d3dx_user.ini are never touched
 pub fn install(task: &Task, cfg: &Config) -> Result<()> {
     let rel = releases(true)?;
-    let (Some(libs), Some(zzmi)) = (rel.libs, rel.zzmi) else { return err("could not reach github for zzmi releases") };
+    let (Some(libs), Some(zzmi)) = (rel.libs, rel.zzmi) else { return err("could not reach github for wwmi releases") };
     let dir = zzmi_dir();
     let staging = dir.join(".staging");
     let _ = std::fs::remove_dir_all(&staging);
@@ -254,11 +255,11 @@ pub fn install(task: &Task, cfg: &Config) -> Result<()> {
     }
 
     if versions.zzmi != zzmi.version || !dir.join("Core").exists() {
-        task.status(format!("Downloading ZZMI {}", zzmi.version));
+        task.status(format!("Downloading WWMI {}", zzmi.version));
         let zip = download_verified(task, &zzmi, ZZMI_KEY, &staging)?;
         let out = staging.join("zzmi");
         unzip(&zip, &out)?;
-        task.status("Installing ZZMI");
+        task.status("Installing WWMI");
         replace_dir(&out.join("Core"), &dir.join("Core"))?;
         replace_dir(&out.join("ShaderFixes"), &dir.join("ShaderFixes"))?;
         std::fs::rename(out.join("d3dx.ini"), dir.join("d3dx.ini"))?;
@@ -269,7 +270,7 @@ pub fn install(task: &Task, cfg: &Config) -> Result<()> {
     std::fs::create_dir_all(mods_dir())?;
     let _ = std::fs::remove_dir_all(&staging);
     prepare(cfg)?;
-    task.status("ZZMI is ready");
+    task.status("WWMI is ready");
     Ok(())
 }
 
@@ -308,10 +309,13 @@ pub fn prepare(cfg: &Config) -> Result<()> {
     let mut lines: Vec<String> = text.lines().map(String::from).collect();
     set_ini(&mut lines, "Loader", "target", crate::game::EXECUTABLE);
     set_ini(&mut lines, "Loader", "loader", HELPER_NAME);
-    set_ini(&mut lines, "Rendering", "texture_hash", "0");
-    set_ini(&mut lines, "Rendering", "track_texture_updates", "0");
+    // what xxmi launcher's wwmi config enforces, mods rely on texture hashes
+    set_ini(&mut lines, "Rendering", "texture_hash", "1");
+    set_ini(&mut lines, "Rendering", "track_texture_updates", "1");
     set_ini(&mut lines, "Rendering", "track_region_hashes", "0");
     set_ini(&mut lines, "Rendering", "allow_buffer_resize", "1");
+    // wwmi's injection delay, it is loaded into the running game rather than at its start
+    set_ini(&mut lines, "System", "dll_initialization_delay", "500");
     set_ini(&mut lines, "Hunting", "hunting", if cfg.mods_hunting { "2" } else { "0" });
     let sep = if crlf { "\r\n" } else { "\n" };
     std::fs::write(&ini_path, lines.join(sep) + sep)?;
@@ -616,7 +620,7 @@ pub fn import(task: &Task, source: &Path) -> Result<Vec<String>> {
 }
 
 pub fn check_due() -> bool {
-    std::fs::read(cache_dir().join("zzmi-releases.json"))
+    std::fs::read(cache_dir().join("wwmi-releases.json"))
         .ok()
         .and_then(|b| serde_json::from_slice::<ReleaseCache>(&b).ok())
         .map(|c| now().saturating_sub(c.checked) >= CHECK_INTERVAL.as_secs())

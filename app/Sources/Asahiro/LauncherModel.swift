@@ -18,7 +18,7 @@ enum TaskKind: String {
         case .launch: "Launching"
         case .createBottle: "Creating bottle"
         case .applyBottle: "Applying bottle settings"
-        case .zzmiInstall: "Installing ZZMI"
+        case .zzmiInstall: "Installing WWMI"
         case .applyPredownload: "Updating"
         case .importMod: "Importing mod"
         }

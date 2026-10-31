@@ -12,8 +12,6 @@ use crate::util::{free_space, Result, Task};
 // the process the game runs as, the launcher exe steam starts hands off to it
 pub const EXECUTABLE: &str = "Client-Win64-Shipping.exe";
 pub const LAUNCHER: &str = "Wuthering Waves.exe";
-// steam passes this to the launcher exe, seen in steam's gameprocess_log
-pub const LAUNCHER_ARGS: [&str; 1] = ["-krqlv=hd"];
 // steam's figure for the full install plus the resources the game downloads on first start
 const INSTALL_SIZE: u64 = 110 << 30;
 

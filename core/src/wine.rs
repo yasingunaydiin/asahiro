@@ -6,7 +6,7 @@ use serde::Serialize;
 use serde_json::json;
 
 use crate::config::{BottleConfig, Config, GraphicsBackend, RunnerKind};
-use crate::game::{self, EXECUTABLE, LAUNCHER, LAUNCHER_ARGS};
+use crate::game::{self, EXECUTABLE, LAUNCHER};
 use crate::runner;
 use crate::steam;
 use crate::util::{err, home, logs_dir, Result, Task};
@@ -98,18 +98,6 @@ impl Runner {
         }
         c.env("WINEDEBUG", "-all");
         c
-    }
-
-    // crossover's wine script drops WINEDLLOVERRIDES from the environment and only takes --dll
-    fn dll_overrides(&self, c: &mut Command, overrides: &str) {
-        match self {
-            Runner::CrossOver(_) => {
-                c.arg("--dll").arg(overrides);
-            }
-            Runner::Bundled(_) => {
-                c.env("WINEDLLOVERRIDES", overrides);
-            }
-        }
     }
 
     // the game has to be the process that boots the wineserver, an already running one makes the
@@ -211,14 +199,16 @@ pub fn game_running() -> bool {
     let Ok(out) = Command::new("/bin/ps").args(["-axo", "args="]).output() else { return false };
     String::from_utf8_lossy(&out.stdout).lines().any(|l| {
         let l = l.trim_start();
+        // the path has spaces in it (program files), so the exe name is matched up to its own end
         l.len() > 3
             && l.as_bytes()[1] == b':'
             && l.as_bytes()[2] == b'\\'
-            && l.split_whitespace().next().is_some_and(|exe| exe.ends_with(EXECUTABLE))
+            && l.find(&format!("\\{}", EXECUTABLE)).is_some_and(|i| {
+                let rest = &l[i + 1 + EXECUTABLE.len()..];
+                rest.is_empty() || rest.starts_with(' ')
+            })
     })
 }
-
-
 
 // environment shared by the bottle config and the launch command
 fn bottle_env(b: &BottleConfig) -> Vec<(String, String)> {
@@ -486,6 +476,12 @@ pub fn start_steam(task: &Task, cfg: &Config, args: &[String]) -> Result<()> {
         .env_remove("SteamDeck")
         .stdout(log.try_clone()?)
         .stderr(log);
+    if cfg.frame_cap > 0 && !cfg.bottle.env.contains_key("DXMT_CONFIG") {
+        c.env("DXMT_CONFIG", format!("d3d11.preferredMaxFrameRate={}", cfg.frame_cap));
+    }
+    // the game inherits steam's environment, so this is where wwmi's d3d11.dll gets allowed in. without
+    // mods it changes nothing, the d3d11.dll in system32 is wine's builtin placeholder
+    c.env("WINEDLLOVERRIDES", dll_overrides(cfg));
     c.spawn()?;
     let loaded = steam::wait_for_helper_d3d(task, Duration::from_secs(180));
     if !loaded {
@@ -494,46 +490,14 @@ pub fn start_steam(task: &Task, cfg: &Config, args: &[String]) -> Result<()> {
     select(task, cfg, &rn, runner::Graphics::Dxmt)
 }
 
+// steam adds the game's own arguments, these are only the user's extra ones. no -dx11 like xxmi passes: the
+// game is on d3d11 unless ray tracing is on, and the flag makes it quit and start again through steam
 fn launch_args(cfg: &Config) -> Vec<String> {
-    let mut args: Vec<String> = LAUNCHER_ARGS.iter().map(|a| a.to_string()).collect();
-    args.extend(cfg.launch_args.split_whitespace().map(String::from));
-    args
+    cfg.launch_args.split_whitespace().map(String::from).collect()
 }
 
-// dxmt paces presents itself. the hooks put the game bundle's icon in the dock and can move the game into
-// a macos fullscreen space
-fn apply_hooks(task: &Task, cfg: &Config, c: &mut Command) {
-    let b = &cfg.bottle;
-    if cfg.frame_cap > 0 && !b.env.contains_key("DXMT_CONFIG") {
-        c.env("DXMT_CONFIG", format!("d3d11.preferredMaxFrameRate={}", cfg.frame_cap));
-    }
-    let icon = runner::game_app_icon();
-    if icon.is_none() && !cfg.native_fullscreen {
-        return;
-    }
-    let p = match runner::hooks_path() {
-        Ok(p) => p,
-        Err(e) => return task.log(format!("hooks skipped: {}", e)),
-    };
-    let mut libs = p.to_string_lossy().into_owned();
-    if let Some(user) = b.env.get("DYLD_INSERT_LIBRARIES").filter(|v| !v.trim().is_empty()) {
-        libs = format!("{}:{}", libs, user.trim());
-    }
-    c.env("DYLD_INSERT_LIBRARIES", libs);
-    if let Some(icon) = icon {
-        c.env("ASAHIRO_DOCK_ICON", icon);
-    }
-    if cfg.native_fullscreen {
-        c.env("ASAHIRO_NATIVE_FULLSCREEN", "1");
-    }
-}
-
-fn windows_path(p: &Path) -> String {
-    format!("Z:{}", p.to_string_lossy().replace('/', "\\"))
-}
-
-// starts steam when needed, then the game's launcher exe the way steam does with steam's app id set, so
-// the game talks to the running client. the game itself always runs on dxmt
+// starts steam when needed, then asks it to start the game. steam passes the game its own environment,
+// so the frame cap is set when steam starts. the game itself always runs on dxmt
 pub fn launch(task: &Task, cfg: &Config) -> Result<()> {
     if game::installed_version(cfg).is_none() {
         return err("the game is not installed, install it through Steam first");
@@ -546,61 +510,110 @@ pub fn launch(task: &Task, cfg: &Config) -> Result<()> {
     if let Err(e) = runner::ensure_game_app() {
         task.log(format!("game mode bundle skipped: {}", e));
     }
+    if cfg.mods_enabled {
+        task.status("Preparing WWMI");
+        if let Err(e) = crate::mods::update_if_needed(task, cfg) {
+            if !crate::mods::installed() {
+                return Err(e);
+            }
+            task.log(format!("wwmi update skipped: {}", e));
+        }
+        // no UserEngine.ini lod setting like xxmi writes: under wine ace stops the game within a minute of
+        // it being there (13-131081-130), even with mods off
+        crate::mods::prepare(cfg)?;
+    }
     start_steam(task, cfg, &[])?;
     select(task, cfg, &rn, runner::Graphics::Dxmt)?;
 
-    let dir = game::game_dir(cfg);
-    let log_path = logs_dir().join(format!(
-        "game-{}.log",
-        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
-    ));
-    let log = std::fs::File::create(&log_path)?;
-    let mut c = rn.wine(cfg, Some(&dir));
-    apply_hooks(task, cfg, &mut c);
-    if !cfg.bottle.dll_overrides.trim().is_empty() {
-        rn.dll_overrides(&mut c, cfg.bottle.dll_overrides.trim());
-    }
-    c.env("SteamAppId", steam::APP_ID)
-        .env("SteamGameId", steam::APP_ID)
-        .env_remove("SteamOS")
-        .env_remove("SteamDeck")
-        .arg(windows_path(&dir.join(LAUNCHER)))
-        .args(launch_args(cfg))
-        .stdout(log.try_clone()?)
-        .stderr(log);
-    task.log(format!("log: {}", log_path.display()));
+    // the injector waits for the game and loads 3dmigoto into it, the game itself comes from steam
+    let mut injector = if cfg.mods_enabled { Some(start_injector(task, &rn, cfg)?) } else { None };
     task.status("Starting Wuthering Waves");
     task.progress(None, "");
+    let mut c = rn.wine(cfg, None);
+    c.arg(steam::EXE).args(["-noverifyfiles", "-norepairfiles", "-applaunch", steam::APP_ID]).args(launch_args(cfg));
+    c.stdout(Stdio::null()).stderr(Stdio::null());
+    c.spawn()?.wait()?;
 
-    let mut child = c.spawn()?;
-    let mut announced = false;
+    // steam may first apply an update or show a dialog, so it gets a while to bring the game up
     let started = std::time::Instant::now();
-    // the launcher exe hands off to the client and exits, so watch the process table for the client
-    loop {
+    while !game_running() {
         if task.cancelled() {
-            stop_game(cfg);
+            return Ok(());
         }
-        if !announced && game_running() {
-            announced = true;
-            task.event(json!({ "type": "game_started" }));
-            task.status("Playing");
-        }
-        let exited = child.try_wait()?.is_some();
-        if exited && !game_running() {
-            if !announced && started.elapsed() < Duration::from_secs(120) {
-                // the launcher may still be handing off, give the client a moment to show up
-                std::thread::sleep(Duration::from_secs(2));
-                if game_running() {
-                    continue;
-                }
-                return err(format!("the game exited early. see {}", log_path.display()));
-            }
-            break;
+        if started.elapsed() > Duration::from_secs(180) {
+            return err("Steam did not start the game, check Steam's window for an update or an error");
         }
         std::thread::sleep(Duration::from_millis(500));
     }
+    task.event(json!({ "type": "game_started" }));
+    task.status("Playing");
+    while game_running() {
+        if task.cancelled() {
+            stop_game(cfg);
+        }
+        std::thread::sleep(Duration::from_millis(500));
+    }
+    // the injector exits on its own after injecting, this only reaps it or stops a stuck one
+    if let Some(mut helper) = injector.take() {
+        let _ = helper.kill();
+        let _ = helper.wait();
+    }
     task.status("Game closed");
     Ok(())
+}
+
+// the user's overrides plus native first d3d11, so 3dmigoto's d3d11.dll loaded by path is not swapped
+// for the builtin one
+fn dll_overrides(cfg: &Config) -> String {
+    let mut parts: Vec<String> =
+        cfg.bottle.dll_overrides.split(';').map(str::trim).filter(|p| !p.is_empty()).map(String::from).collect();
+    // xxmi's d3dcompiler_47.dll too, wine's builtin one can't compile wwmi's shaders
+    for dll in ["d3d11", "d3dcompiler_47"] {
+        if !parts.iter().any(|p| p.split('=').next().is_some_and(|k| k.split(',').any(|d| d.trim() == dll))) {
+            parts.push(format!("{}=n,b", dll));
+        }
+    }
+    parts.join(";")
+}
+
+fn windows_path(p: &Path) -> String {
+    format!("Z:{}", p.to_string_lossy().replace('/', "\\"))
+}
+
+// starts the injector before steam starts the game, its status lines go to the task log
+fn start_injector(task: &Task, rn: &Runner, cfg: &Config) -> Result<std::process::Child> {
+    use std::io::BufRead;
+    let dir = crate::mods::zzmi_dir();
+    let mut c = rn.wine(cfg, None);
+    c.env("WINEDLLOVERRIDES", dll_overrides(cfg))
+        .arg(windows_path(&dir.join(crate::mods::HELPER_NAME)))
+        .arg(windows_path(&dir.join("3dmloader.dll")))
+        .arg(windows_path(&dir.join("d3d11.dll")))
+        .arg(EXECUTABLE)
+        // xxmi injects wwmi directly into the running game, which ace under wine reports as irregular.
+        // the global hook loads it as the game starts instead, like zzmi
+        .arg("240")
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null());
+    task.log("wwmi injector: starting");
+    let mut child = c.spawn()?;
+    let out = child.stdout.take().ok_or("injector has no stdout")?;
+    let task = task.clone();
+    std::thread::spawn(move || {
+        for line in std::io::BufReader::new(out).lines().map_while(|l| l.ok()) {
+            let line = line.trim().to_string();
+            if !line.is_empty() {
+                task.log(format!("wwmi injector: {}", line));
+            }
+            match line.as_str() {
+                "injected" => task.event(json!({ "type": "mods_injected", "ok": true })),
+                "inject_timeout" => task.event(json!({ "type": "mods_injected", "ok": false })),
+                l if l.starts_with("error") => task.event(json!({ "type": "mods_injected", "ok": false, "error": l })),
+                _ => {}
+            }
+        }
+    });
+    Ok(child)
 }
 
 // stops the game only, steam keeps running for the next launch
