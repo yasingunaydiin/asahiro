@@ -3,10 +3,10 @@ import Foundation
 // the fork's identity, kept apart from upstream asahiro's so both can be installed side by side.
 // the folder name matches APP_DIR in core/src/util.rs and the executable and bundle id match scripts/build.sh
 enum AppInfo {
-    static let name = "Asahiro WuWa"
-    static let bundleID = "com.yasingunaydin.asahiro-wuwa"
-    static let executable = "AsahiroWuWa"
-    static let urlScheme = "asahiro-wuwa"
+    static let name = "Asahiro Waves"
+    static let bundleID = "com.yasingunaydin.asahiro-waves"
+    static let executable = "AsahiroWaves"
+    static let urlScheme = "asahiro-waves"
     static let gameName = "Wuthering Waves"
     static let repo = "yasingunaydiin/asahiro"
 

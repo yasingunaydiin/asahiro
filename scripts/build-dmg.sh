@@ -1,12 +1,12 @@
 #!/bin/sh
-# builds dist/Asahiro-WuWa-<version>.dmg with the themed installer window
+# builds dist/Asahiro-Waves-<version>.dmg with the themed installer window
 set -e
 cd "$(dirname "$0")/.."
 
 ./scripts/build.sh
-NAME="Asahiro WuWa"
+NAME="Asahiro Waves"
 VERSION=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" "dist/$NAME.app/Contents/Info.plist")
-OUT="dist/Asahiro-WuWa-$VERSION.dmg"
+OUT="dist/Asahiro-Waves-$VERSION.dmg"
 
 # background art is generated, regenerate it when the script is newer than the image
 if [ ! -f app/Resources/dmg/background.tiff ] || [ scripts/dmg-background.swift -nt app/Resources/dmg/background.tiff ]; then

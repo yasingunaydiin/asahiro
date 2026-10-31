@@ -45,7 +45,7 @@ pub fn home() -> PathBuf {
 }
 
 // the fork's folders, kept apart from upstream asahiro's so both can be installed
-pub const APP_DIR: &str = "Asahiro WuWa";
+pub const APP_DIR: &str = "Asahiro Waves";
 
 pub fn data_dir() -> PathBuf {
     let p = home().join("Library/Application Support").join(APP_DIR);
