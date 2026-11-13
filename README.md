@@ -10,33 +10,43 @@ It runs the Windows Steam release of the game under a patched Wine. Nothing in t
 
 ## Status
 
-- Works: installing, updating and playing the Steam release, with ACE's kernel driver running as normal
-- Experimental: WWMI mods. WWMI loads into the game, but mods don't apply to characters yet, and ACE stops
-  many modded launches. Mods may go against the game's terms of service, so only try them on an account you
-  can afford to lose.
+- Works: installing, updating and playing the Steam-channel release, with the anti-cheat (ACE) kernel driver
+  running as normal
+- Works: WWMI mods, on an account you can afford to lose. Mods may go against the game's terms of service.
+  See the notes below for what a mod needs to show up.
 
 ## Features
 
-- Sets up its own Wine bottle with Steam inside it, with the fixes Steam needs to draw its window
+- Downloads the game straight from the publisher's servers, with checksums and resume. Steam only ships the
+  publisher's launcher now, and its window stays blank under Wine.
+- Sets up its own Wine bottle, with Steam inside it for sign-in
 - Patched Wine runner (CrossOver 26.1 source plus the patches in [wine/patches](wine/patches)), downloaded
   automatically
-- DXMT for the game. Steam starts on Wine's own Direct3D and the app switches the runner to DXMT once Steam
-  is up.
-- Install, update and verify go through Steam. Play starts the game through the running Steam.
-- WWMI install from its signed GitHub releases, and a mod manager (experimental, see above)
-- Frame cap and the Metal HUD
+- DXMT for the game
+- Starts the game directly. With mods on, Steam is closed first: with Steam running next to 3DMigoto the game
+  was closed within a minute.
+- WWMI install from its signed GitHub releases, and a mod manager
+- Custom resolution (experimental), frame cap and the Metal HUD
 - Installs next to upstream Asahiro without clashing: own name, bundle id and data folder
 
 ## Using Asahiro Waves
 
-Requirements: an Apple Silicon Mac on macOS 26 or later with Rosetta 2, and a Steam account that owns
-the game (it's free).
+Requirements: an Apple Silicon Mac on macOS 26 or later with Rosetta 2, and about 90 GB of free space (the HD
+version). An external SSD works well, but plug it straight into the Mac: through a USB 2.0 hub or adapter,
+loading takes minutes.
 
 1. Build the app (see below). There are no prebuilt releases yet.
 2. Open Asahiro Waves and click Install. It downloads the Wine runner (about 450 MB), creates the bottle and
-   installs Steam, then opens Steam on the game's page.
-3. Sign in to Steam in its window and install the game there.
-4. Click Start. The app starts Steam if needed and has it launch the game.
+   installs Steam, then downloads the game.
+3. Click Start.
+
+## Mods
+
+- Mods must be made for the current game version. After a game update, a character's model can change and
+  older mods stop matching until their author updates them.
+- In the game's graphics settings, set **LOD Bias** to **Ultra High**. Without it mod textures don't apply.
+- Don't write the game's config files from outside the game: the anti-cheat closes the game when it sees them
+  change.
 
 ## Building
 
