@@ -72,10 +72,18 @@ if [ "$(cat "$SRC/.wuwa-patches" 2>/dev/null)" != "$stamp" ]; then
     echo "$stamp" > "$SRC/.wuwa-patches"
 fi
 
+# the compilers write source paths into the binaries (debug info, __FILE__), which would leak the folder this
+# is built in. they record a neutral name instead
+MAP="-ffile-prefix-map=$WORK=/wine-build"
+# a tree configured without the mapping is rebuilt
+if [ -f "$BUILD/Makefile" ] && ! grep -q "ffile-prefix-map" "$BUILD/Makefile"; then
+    rm -rf "$BUILD"
+fi
+
 if [ ! -f "$BUILD/Makefile" ]; then
     echo "configuring"
     mkdir -p "$BUILD"
-    (cd "$BUILD" && x86 "$SRC/configure" CC="clang -arch x86_64" --enable-win64 --enable-archs=i386,x86_64 \
+    (cd "$BUILD" && x86 "$SRC/configure" CC="clang -arch x86_64" CFLAGS="-g -O2 $MAP" CROSSCFLAGS="-g -O2 $MAP" --enable-win64 --enable-archs=i386,x86_64 \
         --with-mingw --without-x --without-freetype --without-gnutls --without-gstreamer --without-vulkan \
         --without-opencl --without-sdl --without-cups --without-pcap --without-inotify \
         --disable-tests --disable-winemenubuilder > configure.log 2>&1) \
@@ -98,7 +106,8 @@ echo "$TARGETS" | while read -r built dest; do
     [ -n "$built" ] || continue
     rm -f "$OUT/$dest"
     cp "$BUILD/$built" "$OUT/$dest"
-    case "$dest" in *.so|bin/*) codesign -s - -f "$OUT/$dest" 2>/dev/null ;; esac
+    # the macos binaries keep the build folder in their symbol table too, so the debug symbols go
+    case "$dest" in *.so|bin/*) strip -S "$OUT/$dest" && codesign -s - -f "$OUT/$dest" 2>/dev/null ;; esac
 done
 echo "$stamp" > "$OUT/.wuwa-patches"
 echo "done"

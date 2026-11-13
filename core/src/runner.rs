@@ -11,8 +11,8 @@ use crate::util::{data_dir, err, Result, Task};
 pub const RUNNER_NAME: &str = "CrossOver 11.0-1 with WuWa patches";
 const RUNNER_ID: &str = "wine-crossover-11.0-1-wuwa1";
 const RUNNER_URL: &str = "https://github.com/yasingunaydiin/asahiro/releases/download/runner-wuwa1/wine-crossover-11.0-1-wuwa1.tar.xz";
-const RUNNER_SHA256: &str = "ed94bd708183a8ebf93de00d6d3d4af1f81e42e6237da887c4c36cbf1c33d84a";
-const RUNNER_SIZE: u64 = 450515684;
+const RUNNER_SHA256: &str = "1f391e1abc76cdb986832c7241efd2d299d7271486056ac237a4000bd7a8fe72";
+const RUNNER_SIZE: u64 = 450499528;
 
 const DXMT_ID: &str = "dxmt-654f547";
 const DXMT_URL: &str = "https://github.com/yaagl/anime-game-wine/releases/download/dxmt-654f547/dxmt-654f547ffab4e0c395ee368aad52bb4586b04576.zip";
