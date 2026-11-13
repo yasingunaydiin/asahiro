@@ -119,18 +119,53 @@ pub fn running() -> bool {
     !pids("\\steam.exe").is_empty()
 }
 
+// true once steam has put valve's own helper back over the wrapper, which it does when it updates itself
+pub fn helper_unwrapped(bottle: &Path) -> bool {
+    let Ok(entries) = std::fs::read_dir(dir(bottle).join("bin/cef")) else { return false };
+    entries
+        .filter_map(|e| e.ok())
+        .any(|e| std::fs::metadata(e.path().join(HELPER)).is_ok_and(|m| m.len() > 1_000_000))
+}
+
+pub enum HelperWait {
+    Loaded,
+    TimedOut,
+    // steam updated itself while starting and runs valve's helper directly, its windows will be black
+    Unwrapped,
+}
+
 // steam's windows need wine's own d3d, which the web helper loads through wined3d.dll. once it is mapped
 // the runner can switch to dxmt for the game, the helper keeps what it loaded
-pub fn wait_for_helper_d3d(task: &Task, timeout: Duration) -> bool {
+pub fn wait_for_helper_d3d(task: &Task, bottle: &Path, timeout: Duration) -> HelperWait {
     let deadline = Instant::now() + timeout;
     while Instant::now() < deadline && !task.cancelled() {
         for pid in pids(HELPER_REAL) {
             let Ok(out) = Command::new("/usr/sbin/lsof").args(["-p", &pid, "-Fn"]).output() else { continue };
             if String::from_utf8_lossy(&out.stdout).lines().any(|l| l.ends_with("/wined3d.dll")) {
-                return true;
+                return HelperWait::Loaded;
             }
+        }
+        if helper_unwrapped(bottle) && pids(HELPER_REAL).is_empty() && !pids(&format!("\\{}", HELPER)).is_empty() {
+            return HelperWait::Unwrapped;
         }
         std::thread::sleep(Duration::from_millis(500));
     }
-    false
+    HelperWait::TimedOut
+}
+
+// ends steam and everything it started, a helper that hangs on is killed after a while
+pub fn stop() {
+    let names = ["\\steam\\steam.exe", "\\steamwebhelper.exe", "\\steamwebhelper_real.exe", "\\steamservice.exe"];
+    let all = || names.iter().flat_map(|n| pids(n)).collect::<Vec<_>>();
+    for sig in ["-TERM", "-KILL"] {
+        let found = all();
+        if found.is_empty() {
+            return;
+        }
+        let _ = Command::new("/bin/kill").arg(sig).args(&found).status();
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while Instant::now() < deadline && !all().is_empty() {
+            std::thread::sleep(Duration::from_millis(300));
+        }
+    }
 }

@@ -465,42 +465,63 @@ pub fn start_steam(task: &Task, cfg: &Config, args: &[String]) -> Result<()> {
     task.status("Starting Steam");
     task.progress(None, "");
     select(task, cfg, &rn, runner::Graphics::Builtin)?;
-    let log = std::fs::File::create(logs_dir().join("steam.log"))?;
-    let mut c = rn.wine(cfg, None);
-    // steam's startup check puts valve's web helper back over the wrapper unless it leaves files alone
-    c.arg(steam::EXE)
-        .args(["-noverifyfiles", "-norepairfiles", "-cef-disable-gpu", "-cef-disable-sandbox"])
-        .args(args)
-        // since game 3.4 these load a broken video plugin, proton's fix for the game unsets them too
-        .env_remove("SteamOS")
-        .env_remove("SteamDeck")
-        .stdout(log.try_clone()?)
-        .stderr(log);
-    if cfg.frame_cap > 0 && !cfg.bottle.env.contains_key("DXMT_CONFIG") {
-        c.env("DXMT_CONFIG", format!("d3d11.preferredMaxFrameRate={}", cfg.frame_cap));
-    }
-    // the game inherits steam's environment, so this is where wwmi's d3d11.dll gets allowed in. without
-    // mods it changes nothing, the d3d11.dll in system32 is wine's builtin placeholder
-    c.env("WINEDLLOVERRIDES", dll_overrides(cfg));
-    c.spawn()?;
-    let loaded = steam::wait_for_helper_d3d(task, Duration::from_secs(180));
-    if !loaded {
-        task.log("steam's web helper did not load d3d in time, switching to dxmt anyway");
+    let bottle = bottle_path(cfg);
+    for round in 0..2 {
+        let log = std::fs::File::create(logs_dir().join("steam.log"))?;
+        let mut c = rn.wine(cfg, None);
+        // steam's startup check puts valve's web helper back over the wrapper unless it leaves files alone
+        c.arg(steam::EXE)
+            .args(["-noverifyfiles", "-norepairfiles", "-cef-disable-gpu", "-cef-disable-sandbox"])
+            .args(args)
+            // since game 3.4 these load a broken video plugin, proton's fix for the game unsets them too
+            .env_remove("SteamOS")
+            .env_remove("SteamDeck")
+            .stdout(log.try_clone()?)
+            .stderr(log);
+        if cfg.frame_cap > 0 && !cfg.bottle.env.contains_key("DXMT_CONFIG") {
+            c.env("DXMT_CONFIG", format!("d3d11.preferredMaxFrameRate={}", cfg.frame_cap));
+        }
+        // the game inherits steam's environment, so this is where wwmi's d3d11.dll gets allowed in. without
+        // mods it changes nothing, the d3d11.dll in system32 is wine's builtin placeholder
+        c.env("WINEDLLOVERRIDES", dll_overrides(cfg));
+        c.spawn()?;
+        match steam::wait_for_helper_d3d(task, &bottle, Duration::from_secs(180)) {
+            steam::HelperWait::Loaded => break,
+            // a steam update replaced the wrapper after this start had put it in place. steam is on its
+            // new version now, so wrapping again and starting it once more holds
+            steam::HelperWait::Unwrapped if round == 0 => {
+                task.status("Steam updated itself, restarting it");
+                steam::stop();
+                steam::wrap_webhelper(&bottle)?;
+            }
+            _ => {
+                task.log("steam's web helper did not load d3d in time, switching to dxmt anyway");
+                break;
+            }
+        }
     }
     select(task, cfg, &rn, runner::Graphics::Dxmt)
 }
 
-// steam adds the game's own arguments, these are only the user's extra ones. no -dx11 like xxmi passes: the
-// game is on d3d11 unless ray tracing is on, and the flag makes it quit and start again through steam
+// the user's extra arguments. no -dx11 like xxmi passes: the game is on d3d11 unless ray tracing is on,
+// and the flag made it quit and start again through steam
 fn launch_args(cfg: &Config) -> Vec<String> {
-    cfg.launch_args.split_whitespace().map(String::from).collect()
+    let mut args: Vec<String> = Vec::new();
+    // unreal's own switches. borderless fullscreen always renders at the desktop's size, so a custom
+    // size goes with real fullscreen or a window
+    if cfg.custom_resolution {
+        args.push(format!("-ResX={}", cfg.resolution_width));
+        args.push(format!("-ResY={}", cfg.resolution_height));
+        args.push(if cfg.fullscreen { "-fullscreen" } else { "-windowed" }.into());
+    }
+    args.extend(cfg.launch_args.split_whitespace().map(String::from));
+    args
 }
 
-// starts steam when needed, then asks it to start the game. steam passes the game its own environment,
-// so the frame cap is set when steam starts. the game itself always runs on dxmt
+// starts steam when needed, then the game itself. the game always runs on dxmt
 pub fn launch(task: &Task, cfg: &Config) -> Result<()> {
     if game::installed_version(cfg).is_none() {
-        return err("the game is not installed, install it through Steam first");
+        return err("the game is not installed");
     }
     if game_running() {
         return err("the game is already running");
@@ -522,26 +543,59 @@ pub fn launch(task: &Task, cfg: &Config) -> Result<()> {
         // it being there (13-131081-130), even with mods off
         crate::mods::prepare(cfg)?;
     }
-    start_steam(task, cfg, &[])?;
+    if cfg.mods_enabled {
+        // with steam up the game loads steam's overlay next to 3dmigoto, and every such start so far was
+        // closed within a minute. the one modded start without steam ran fine and still signed in from
+        // the saved session, so mods go without it
+        if steam::running() {
+            task.status("Closing Steam");
+            steam::stop();
+        }
+    } else {
+        // the game signs in through steam, which has to be up and signed in before the game asks for it
+        let steam_was_running = steam::running();
+        start_steam(task, cfg, &[])?;
+        if !steam_was_running {
+            task.status("Waiting for Steam to sign in");
+            for _ in 0..40 {
+                if task.cancelled() {
+                    return Ok(());
+                }
+                std::thread::sleep(Duration::from_millis(500));
+            }
+        }
+    }
     select(task, cfg, &rn, runner::Graphics::Dxmt)?;
 
-    // the injector waits for the game and loads 3dmigoto into it, the game itself comes from steam
+    // the injector waits for the game and loads 3dmigoto into it
     let mut injector = if cfg.mods_enabled { Some(start_injector(task, &rn, cfg)?) } else { None };
     task.status("Starting Wuthering Waves");
     task.progress(None, "");
-    let mut c = rn.wine(cfg, None);
-    c.arg(steam::EXE).args(["-noverifyfiles", "-norepairfiles", "-applaunch", steam::APP_ID]).args(launch_args(cfg));
-    c.stdout(Stdio::null()).stderr(Stdio::null());
-    c.spawn()?.wait()?;
+    // steam's own start button only opens kuro's launcher now, so the game's launcher exe is started
+    // here the way that launcher would. -krqlv names the installed quality pack, like xxmi passes it
+    let dir = game::game_dir(cfg);
+    let mut c = rn.wine(cfg, Some(&dir));
+    c.arg(game::LAUNCHER).arg(format!("-krqlv={}", crate::kuro::TIER)).args(launch_args(cfg));
+    // what the game used to inherit from steam: wwmi's d3d11.dll allowed in, and the frame cap
+    c.env("WINEDLLOVERRIDES", dll_overrides(cfg)).env_remove("SteamOS").env_remove("SteamDeck");
+    if cfg.frame_cap > 0 && !cfg.bottle.env.contains_key("DXMT_CONFIG") {
+        c.env("DXMT_CONFIG", format!("d3d11.preferredMaxFrameRate={}", cfg.frame_cap));
+    }
+    // the game prints its own log here, which is the only trace when it closes early
+    let log = std::fs::File::create(logs_dir().join("game.log"))?;
+    c.stdout(log.try_clone()?).stderr(log);
+    let mut game = c.spawn()?;
+    std::thread::spawn(move || {
+        let _ = game.wait();
+    });
 
-    // steam may first apply an update or show a dialog, so it gets a while to bring the game up
     let started = std::time::Instant::now();
     while !game_running() {
         if task.cancelled() {
             return Ok(());
         }
         if started.elapsed() > Duration::from_secs(180) {
-            return err("Steam did not start the game, check Steam's window for an update or an error");
+            return err("the game did not start");
         }
         std::thread::sleep(Duration::from_millis(500));
     }
