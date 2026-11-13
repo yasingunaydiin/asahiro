@@ -237,7 +237,8 @@ impl Speed {
         if dt <= 0.0 {
             0.0
         } else {
-            (total - b0) as f64 / dt
+            // the count steps back when a file fails its checksum and is fetched again
+            total.saturating_sub(b0) as f64 / dt
         }
     }
 }

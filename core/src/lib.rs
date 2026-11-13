@@ -3,6 +3,7 @@ pub mod archive;
 pub mod config;
 pub mod download;
 pub mod game;
+pub mod kuro;
 pub mod mods;
 pub mod runner;
 pub mod steam;

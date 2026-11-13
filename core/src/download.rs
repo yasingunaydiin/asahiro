@@ -66,6 +66,14 @@ pub fn fetch(meter: &mut Meter, url: &str, dest: &Path, size: u64, md5: &str) ->
         meter.add(size);
         return Ok(());
     }
+    fetch_verified(meter, url, dest, size, md5)?;
+    std::fs::write(ok_marker(dest), md5)?;
+    Ok(())
+}
+
+// the download and checksum part of fetch, for callers that keep their own record of finished files.
+// a partial file at dest is resumed, one that fails its checksum is deleted
+pub fn fetch_verified(meter: &mut Meter, url: &str, dest: &Path, size: u64, md5: &str) -> Result<()> {
     if let Some(parent) = dest.parent() {
         std::fs::create_dir_all(parent)?;
     }
@@ -106,18 +114,20 @@ pub fn fetch(meter: &mut Meter, url: &str, dest: &Path, size: u64, md5: &str) ->
         meter.task.phase("verify");
         meter.task.status(format!("Verifying {}", name));
         let task = meter.task;
+        // the bar stays where the download left it, one file among hundreds must not reset it
+        let frac = if meter.total > 0 { (meter.done as f64 / meter.total as f64).min(1.0) } else { 0.0 };
         let mut seen = 0u64;
         let got = md5_file(dest, |n| {
             seen += n;
-            task.progress(Some(seen as f64 / size.max(1) as f64), format!("Verifying {}  {}", name, human_size(seen)));
+            task.progress(Some(frac), format!("Verifying {}  {} / {}", name, human_size(seen), human_size(size)));
             task.check()
         })?;
         if !got.eq_ignore_ascii_case(md5) {
             remove(dest);
+            meter.done = start_done;
             return err(format!("checksum mismatch for {}, it was deleted so the next attempt starts clean", name));
         }
     }
-    std::fs::write(ok_marker(dest), md5)?;
     Ok(())
 }
 
